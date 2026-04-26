@@ -525,7 +525,7 @@
     </div>
 
     <div style="margin-top:14px">
-      <label>Live preview</label>
+      <label>Live preview <span id="pvHint" style="text-transform:none;color:var(--muted);font-weight:400;letter-spacing:0;font-size:11.5px">(showing sample — add recipients in the tabs below to use real names)</span></label>
       <div class="preview-qr" data-testid="qr-preview">
         <canvas id="pvCanvas" width="320" height="320" aria-label="preview"></canvas>
         <div class="pv-text">
@@ -538,7 +538,11 @@
   <!-- ============ Cloud sync ============ -->
   <section class="card cloud-card">
     <h2>☁️ Cloud sync · multi-device check-in</h2>
-    <div class="sub">Save this event to the cloud so the Scanner page (any device) and the Live Dashboard can use it. Required for multi-device check-in.</div>
+    <div class="sub">
+      Saves this event + all recipients to the server and gives you a shareable <b>event code</b>.
+      Open the scanner or dashboard on any device with that code — multiple staff can scan at the same door without duplicate check-ins.
+      <br/>Without saving, recipients only live in <em>this browser</em>.
+    </div>
 
     <div class="cloud-status" id="cloudStatus" data-testid="cloud-status">
       <div class="dot"></div>
@@ -565,6 +569,9 @@
 
   <!-- ============ Mode tabs ============ -->
   <section class="card">
+    <h2>Add recipients</h2>
+    <div class="sub">Pick how you want to add people. The Live preview above will show <em>their</em> name once added.</div>
+
     <div class="tabs" role="tablist">
       <button class="tab active" data-tab="bulk" type="button" data-testid="tab-bulk"><span class="dot"></span>Bulk upload</button>
       <button class="tab" data-tab="single" type="button" data-testid="tab-single"><span class="dot"></span>Single QR</button>
@@ -887,11 +894,18 @@
   // -------- Preview --------
   let pvDebounce;
   function refreshPreview(){
+    const hasRecipients = state.recipients.length > 0;
     const sample = state.recipients[0] || { name:'Alex Doe', email:'alex@example.com', f1:'', f2:'' };
     const text = buildQrText(sample);
     $('pvText').textContent = text;
     $('stEvent').textContent = `${$('evName').value.trim() || '—'} ${$('evYear').value || ''}`.trim();
-    if(state.recipients.length){
+    const pvHint = $('pvHint');
+    if(pvHint){
+      pvHint.textContent = hasRecipients
+        ? `(showing first of ${state.recipients.length} loaded recipient${state.recipients.length === 1 ? '' : 's'})`
+        : `(showing sample "Alex Doe" — add recipients in the tabs below to use real names)`;
+    }
+    if(hasRecipients){
       state.recipients.forEach(r => r.qrText = buildQrText(r));
       renderTable();
     }
@@ -969,6 +983,7 @@
     state.generated = 0;
     state.recipients.forEach(r => r.qrText = buildQrText(r));
     renderTable(); renderGrid(); updateBtnStates();
+    refreshPreview();
     $('recipientsCard').style.display = 'block';
     const msg = skipped>0 ? `Loaded ${list.length} recipients. ${skipped} row(s) skipped (missing name).` : `Loaded ${list.length} recipients.`;
     showAlert($('parseAlert'),'ok', msg);
@@ -992,6 +1007,7 @@
     $('dropTitle').textContent = 'Drop file here or click to browse';
     $('recipientsCard').style.display = 'none';
     renderTable(); renderGrid(); updateBtnStates();
+    refreshPreview();
     hideAlert($('parseAlert')); hideAlert($('genAlert'));
     $('genStatus').textContent = '';
   });
@@ -1019,6 +1035,7 @@
       state.generated += 1;
     } catch(e){ /* ignore */ }
     renderTable(); renderGrid(); updateBtnStates();
+    refreshPreview();
     $('singleStatus').textContent = `Added & generated QR for ${name}.`;
     // clear form
     $('sName').value = ''; $('sEmail').value = ''; $('sF1').value = ''; $('sF2').value = '';
