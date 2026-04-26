@@ -167,6 +167,7 @@
 
           <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary btn-sm" id="walkInBtn" type="button" data-testid="walkin-btn" style="background:linear-gradient(180deg,#fbbf24,#f97316);color:#1a1a1a">＋ Add walk-in</button>
+            <button class="btn btn-ghost btn-sm" id="posterBtn" type="button" data-testid="poster-btn">🪧 Print self-check-in poster</button>
             <button class="btn btn-ghost btn-sm" id="csvBtn" type="button" data-testid="export-csv-btn">Export attendance CSV</button>
             <button class="btn btn-ghost btn-sm" id="resetBtn" type="button" data-testid="reset-btn">Reset all check-ins</button>
             <button class="btn btn-ghost btn-sm" id="disconnectBtn" type="button" data-testid="disconnect-btn">Disconnect</button>
@@ -274,6 +275,44 @@
   </div>
 </div>
 
+<!-- Print poster sheet (visible only when printing) -->
+<div id="posterSheet" style="display:none">
+  <style>
+    @media print{
+      @page{margin:10mm;size:A4 portrait}
+      body > *:not(#posterSheet){display:none !important}
+      #posterSheet{display:block !important;background:#fff;color:#000}
+      .poster{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:calc(100vh - 20mm);page-break-inside:avoid;font-family:ui-sans-serif,Arial,sans-serif}
+      .poster .eyebrow{font-size:14px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#c2410c;margin-bottom:10px}
+      .poster h1{font-size:48px;font-weight:900;letter-spacing:-.02em;line-height:1.05;margin:0 0 8px}
+      .poster .meta{font-size:18px;color:#555;margin-bottom:24px}
+      .poster .qrbox{padding:20px;border:1px solid #ddd;border-radius:18px;background:#fff}
+      .poster .qrbox canvas{display:block}
+      .poster .cap{margin-top:22px;font-size:18px;font-weight:700;color:#111}
+      .poster .url{margin-top:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#666;word-break:break-all;max-width:600px}
+      .poster .code{margin-top:14px;font-size:32px;font-weight:900;letter-spacing:.08em;color:#7c2d12}
+      .poster .step{margin-top:24px;text-align:left;max-width:520px;font-size:15px;color:#333;line-height:1.6}
+      .poster .step b{color:#000}
+    }
+  </style>
+  <div class="poster">
+    <div class="eyebrow">Welcome — please check in</div>
+    <h1 id="posterTitle">—</h1>
+    <div class="meta" id="posterMeta">—</div>
+    <div class="qrbox"><div id="posterQr"></div></div>
+    <div class="cap">📱 Open camera · scan this QR · check yourself in</div>
+    <div class="url" id="posterUrl">—</div>
+    <div class="code" id="posterCode">—</div>
+    <div class="step">
+      <b>How it works:</b><br/>
+      1. Point your phone camera at the QR above.<br/>
+      2. Tap the link that pops up — it opens the self check-in page.<br/>
+      3. Scan your personal QR (or find yourself by email/name) and confirm.<br/>
+      Need help? Ask a staff member.
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
 <script>
@@ -314,6 +353,7 @@
       const j = await r.json();
       if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
       state.code = code;
+      state.event = j.event;
       localStorage.setItem(LS_KEY, code);
       // update URL without reload
       const url = new URL(location.href); url.searchParams.set('event', code); history.replaceState({}, '', url);
@@ -663,6 +703,34 @@
   }
   $('wsClose').addEventListener('click', () => $('walkSuccessModal').classList.remove('show'));
   $('walkSuccessModal').addEventListener('click', (e) => { if(e.target.id === 'walkSuccessModal') $('walkSuccessModal').classList.remove('show'); });
+
+  // -------- Print event self-check-in poster --------
+  $('posterBtn').addEventListener('click', () => {
+    if(!state.code){ showAlert($('liveAlert'),'warn','Connect to an event first.'); return; }
+    const url = `${location.origin}/checkin.html?event=${encodeURIComponent(state.code)}`;
+    const ev = state.event || {};
+    // Title from header
+    const headerText = $('evHeader').textContent || '';
+    const title = headerText.split('·')[0].trim() || `Event ${state.code}`;
+    $('posterTitle').textContent = title;
+    $('posterMeta').textContent = ev.date || ev.venue ? [ev.date, ev.venue].filter(Boolean).join(' · ') : 'Self check-in';
+    $('posterUrl').textContent = url;
+    $('posterCode').textContent = state.code;
+    // Render big QR
+    const host = $('posterQr');
+    host.innerHTML = '';
+    const qr = new QRCodeStyling({
+      width: 480, height: 480, type: 'canvas',
+      data: url, margin: 6,
+      qrOptions: { errorCorrectionLevel: 'M' },
+      dotsOptions: { type: 'square', color: '#111' },
+      backgroundOptions: { color: '#fff' },
+      cornersSquareOptions: { type: 'extra-rounded', color: '#111' },
+      cornersDotOptions: { type: 'dot', color: '#c2410c' }
+    });
+    qr.append(host);
+    setTimeout(() => window.print(), 350);
+  });
 
   // Auto-connect if URL/localStorage had a code
   if(initialCode) connect(initialCode);

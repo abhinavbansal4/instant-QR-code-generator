@@ -377,15 +377,24 @@ async def walkin(event_code: str, req: WalkInRequest):
 
 
 class LookupRequest(BaseModel):
-    qr_text: str
+    qr_text: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
 
 
 @api_router.post("/events/{event_code}/lookup")
 async def lookup_by_qr(event_code: str, req: LookupRequest):
-    rec = await db.event_recipients.find_one(
-        {"event_code": event_code, "qr_text": req.qr_text.strip()},
-        {"_id": 0}
-    )
+    query: Dict[str, Any] = {"event_code": event_code}
+    if req.qr_text:
+        query["qr_text"] = req.qr_text.strip()
+    elif req.email:
+        # case-insensitive exact email match
+        query["email"] = {"$regex": f"^{req.email.strip()}$", "$options": "i"}
+    elif req.name:
+        query["name"] = {"$regex": f"^{req.name.strip()}$", "$options": "i"}
+    else:
+        raise HTTPException(400, "Provide qr_text, email, or name")
+    rec = await db.event_recipients.find_one(query, {"_id": 0})
     if not rec:
         return {"found": False}
     existing = await db.event_checkins.find_one(
@@ -393,6 +402,28 @@ async def lookup_by_qr(event_code: str, req: LookupRequest):
         {"_id": 0}
     )
     return {"found": True, "recipient": rec, "checkin": existing}
+
+
+@api_router.post("/events/{event_code}/lookup-multi")
+async def lookup_multi(event_code: str, req: LookupRequest):
+    """Fuzzy email/name search returning up to 10 matches (for self check-in disambiguation)."""
+    query: Dict[str, Any] = {"event_code": event_code}
+    if req.email:
+        query["email"] = {"$regex": req.email.strip(), "$options": "i"}
+    elif req.name:
+        query["name"] = {"$regex": req.name.strip(), "$options": "i"}
+    else:
+        raise HTTPException(400, "Provide email or name")
+    cur = db.event_recipients.find(query, {"_id": 0}).limit(10)
+    items = await cur.to_list(length=10)
+    # also annotate with check-in state
+    for r in items:
+        c = await db.event_checkins.find_one(
+            {"event_code": event_code, "recipient_id": r["recipient_id"]},
+            {"_id": 0}
+        )
+        r["checkin"] = c
+    return {"matches": items, "count": len(items)}
 
 
 @api_router.get("/events/{event_code}/checkins")

@@ -109,6 +109,24 @@ Endpoints:
 - **Race test**: 2 concurrent POSTs for same recipient → `{a: 409, b: 200}` (atomic, exactly one succeeds)
 - Dashboard auto-updated 2 → 3 after race ✓
 
+## Update (2026-02 — self check-in + event poster)
+- New page **`/checkin.html`** for **self check-in** (mobile-first, dark glass UI):
+  - Auto-loads event by `?event=CODE`
+  - Two paths: **"Scan my personal QR"** (jsQR + back camera) or **"Find me by email or name"** (case-insensitive search; multi-match list when ambiguous, single-match auto-advance).
+  - Confirm card with people-count stepper.
+  - Animated success overlay: green check with stroke-dash animation, confetti, vibration haptic.
+  - Server enforces dedup → "Already checked in" pre-shown if a match has an existing check-in (also verified live).
+- New backend endpoint **`POST /api/events/{code}/lookup-multi`** for fuzzy email/name search returning up to 10 matches with their check-in state.
+- Existing `POST /api/events/{code}/lookup` extended to accept `qr_text` OR `email` OR `name`.
+- Scanner page got **"🪧 Print self-check-in poster"** button: renders an A4 portrait sheet with a 480×480 QR encoding `https://.../checkin.html?event=CODE`, big event title, event code in saffron, and step-by-step instructions. One click → print dialog.
+- Verified live: self check-in via email lookup completed for Priya, success overlay rendered, stats jumped `in 5→6` ✓.
+
+## Backlog / Next
+- Mark walk-ins / self check-ins separately on dashboard (small pills).
+- Resend domain verification for emails.
+- Server-Sent Events for instant dashboard.
+- Per-event auth/owner.
+
 ## Backlog / Next
 - P1: Verify domain in Resend so walk-in & ticket emails work for any address (currently locked to API-key owner).
 - P1: Mark walk-ins visually in scanner log + dashboard feed (e.g., a small "WALK-IN" pill).
