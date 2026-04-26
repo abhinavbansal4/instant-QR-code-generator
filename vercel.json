@@ -9,6 +9,5 @@
             "entrypoint": "backend",
             "routePrefix": "/_/backend"
         }
-    },
-    "installCommand": "npm install --legacy-peer-deps"
+    }
 }
