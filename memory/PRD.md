@@ -31,7 +31,9 @@ Generic website that generates a QR code for every teacher, for any year. Takes 
 - [x] Bulk QR fetch with progress bar
 - [x] Per-teacher QR card grid with individual download links
 - [x] ZIP download named `{event}_{year}_QR_Codes.zip`
-- [x] Validated end-to-end (sample → 6 QRs generated → ZIP downloaded)
+- [x] **Center logo embedding** — upload PNG/JPG/SVG/WebP, auto-padded with rounded white plate, embedded at 18% size with ECC=H for safe scanning. Switched generation from api.qrserver.com to client-side `qr-code-styling`.
+- [x] Stylized QR look — square dots, extra-rounded corner-square frames, saffron accent on corner dots
+- [x] Validated end-to-end with logo (sample → 6 QRs with logo → ZIP downloaded)
 
 ## Backlog / Next
 - P1: Drag a folder containing many sheets (multi-file batch)

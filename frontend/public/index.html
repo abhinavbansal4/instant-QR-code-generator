@@ -4,7 +4,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>QR Code Generator · Bulk from Excel/CSV</title>
-<link rel="preconnect" href="https://api.qrserver.com" />
 <style>
   :root{
     --bg: #fbfaf7;
@@ -88,9 +87,26 @@
     display:flex;align-items:center;gap:14px;padding:12px;
     background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;margin-top:8px
   }
-  .preview-qr img{width:72px;height:72px;border-radius:6px;background:#fff;padding:4px;border:1px solid var(--border)}
+  .preview-qr img, .preview-qr canvas{width:96px;height:96px;border-radius:8px;background:#fff;padding:4px;border:1px solid var(--border)}
   .preview-qr .pv-text{font-size:13px;color:var(--muted)}
   .preview-qr .pv-text b{color:var(--text);font-weight:600}
+
+  .logo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px}
+  .logo-pick{
+    display:flex;align-items:center;gap:14px;cursor:pointer;
+    padding:10px 12px;border:1px dashed var(--border);border-radius:10px;
+    background:var(--surface-2);flex:1;min-width:260px;transition:border-color .15s
+  }
+  .logo-pick:hover{border-color:var(--accent)}
+  .logo-pick input{display:none}
+  .logo-thumb{
+    width:60px;height:60px;border-radius:12px;background:#fff;border:1px solid var(--border);
+    display:grid;place-items:center;overflow:hidden;flex-shrink:0
+  }
+  .logo-thumb img{width:100%;height:100%;object-fit:contain}
+  .logo-thumb .ph{font-size:10.5px;color:var(--muted);text-align:center;padding:4px;line-height:1.3}
+  .logo-meta{font-size:13px}
+  .logo-meta b{font-weight:600}
 
   .drop{
     border:2px dashed var(--border);border-radius:14px;padding:30px;text-align:center;
@@ -207,9 +223,27 @@
       <div class="hint">
         Placeholders: <code>{event_name}</code>, <code>{year}</code>, <code>{teacher_name}</code>, <code>{email}</code>
       </div>
+    </div>
 
+    <div style="margin-top:14px">
+      <label>Center logo (optional)</label>
+      <div class="logo-row">
+        <label class="logo-pick" for="logoIn" data-testid="logo-picker">
+          <input id="logoIn" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" data-testid="logo-input"/>
+          <div class="logo-thumb" id="logoThumb"><div class="ph">Click to<br/>upload</div></div>
+          <div class="logo-meta">
+            <div><b id="logoName">No logo selected</b></div>
+            <div class="hint" style="margin-top:2px">PNG · JPG · SVG · WebP — auto-padded with rounded white plate</div>
+          </div>
+        </label>
+        <button id="logoClear" class="btn btn-ghost btn-sm" type="button" data-testid="logo-clear-btn" style="display:none">Remove logo</button>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <label>Live preview</label>
       <div class="preview-qr" data-testid="qr-preview">
-        <img id="pvImg" alt="preview" />
+        <canvas id="pvCanvas" width="256" height="256" aria-label="preview"></canvas>
         <div class="pv-text">
           Preview encodes:&nbsp;<b id="pvText">—</b>
         </div>
@@ -263,7 +297,7 @@
   <!-- ============== GENERATE ============== -->
   <section class="card">
     <h2>3. Generate &amp; download</h2>
-    <div class="sub">Each QR is fetched from <code>api.qrserver.com</code> and packed into a single ZIP.</div>
+    <div class="sub">QR codes are rendered locally with your logo embedded — no upload, no server.</div>
 
     <div class="actions">
       <button class="btn btn-primary" id="genBtn" type="button" disabled data-testid="generate-btn">Generate QR codes</button>
@@ -278,25 +312,27 @@
   </section>
 
   <footer>
-    Pure browser app · QR via api.qrserver.com · Excel via SheetJS · ZIP via JSZip
+    Pure browser app · QR via qr-code-styling · Excel via SheetJS · ZIP via JSZip
   </footer>
 </div>
 
 <!-- Libraries (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
 
 <script>
 (() => {
   // ---------- State ----------
   const state = {
-    teachers: [],     // [{name, email, qrText, qrUrl, blob}]
-    generated: 0
+    teachers: [],     // [{name, email, qrText, blob, blobUrl}]
+    generated: 0,
+    logoDataUrl: null,    // user-uploaded original
+    logoPlateUrl: null    // logo with rounded white plate, ready for QR
   };
 
   // ---------- Helpers ----------
   const $ = (id) => document.getElementById(id);
-  const QR_API = 'https://api.qrserver.com/v1/create-qr-code/';
 
   function sanitizeFilename(name){
     return String(name)
@@ -315,9 +351,8 @@
       .replaceAll('{email}', teacher.email || '');
   }
 
-  function qrUrlFor(text){
-    const size = Math.max(64, Math.min(1000, parseInt($('qrSize').value || '256', 10)));
-    return `${QR_API}?size=${size}x${size}&data=${encodeURIComponent(text)}`;
+  function qrSize(){
+    return Math.max(64, Math.min(1000, parseInt($('qrSize').value || '256', 10)));
   }
 
   function showAlert(el, kind, msg){
@@ -326,18 +361,155 @@
   }
   function hideAlert(el){ el.className = 'alert'; el.textContent = ''; }
 
+  // ---------- QR generation (client-side with logo) ----------
+  function makeQRStyling(text, opts={}){
+    const size = qrSize();
+    return new QRCodeStyling({
+      width: size,
+      height: size,
+      type: 'canvas',
+      data: text,
+      margin: 4,
+      qrOptions: { errorCorrectionLevel: 'H' },
+      image: state.logoPlateUrl || undefined,
+      imageOptions: {
+        crossOrigin: 'anonymous',
+        margin: 2,
+        imageSize: 0.18,
+        hideBackgroundDots: true
+      },
+      dotsOptions: { type: 'square', color: '#111111' },
+      backgroundOptions: { color: '#ffffff' },
+      cornersSquareOptions: { type: 'extra-rounded', color: '#111111' },
+      cornersDotOptions: { type: 'dot', color: '#c2410c' },
+      ...opts
+    });
+  }
+
+  async function qrToBlob(text){
+    const qr = makeQRStyling(text);
+    const blob = await qr.getRawData('png');
+    return blob; // browser returns Blob
+  }
+
+  async function qrToCanvas(text, container){
+    container.innerHTML = '';
+    const qr = makeQRStyling(text);
+    qr.append(container);
+  }
+
+  // ---------- Logo handling ----------
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+  }
+
+  function logoToPlate(srcDataUrl){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const size = 512;
+        const padding = 56;
+        const inner = size - padding * 2;
+        const cv = document.createElement('canvas');
+        cv.width = size; cv.height = size;
+        const ctx = cv.getContext('2d');
+        // rounded white plate
+        ctx.fillStyle = '#ffffff';
+        roundRect(ctx, 0, 0, size, size, 88);
+        ctx.fill();
+        // fit logo while preserving aspect
+        const ratio = Math.min(inner / img.width, inner / img.height);
+        const w = img.width * ratio, h = img.height * ratio;
+        ctx.drawImage(img, (size - w)/2, (size - h)/2, w, h);
+        resolve(cv.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Could not read logo image'));
+      img.src = srcDataUrl;
+    });
+  }
+
+  function readFileAsDataUrl(file){
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(new Error('Could not read file'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  $('logoIn').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const raw = await readFileAsDataUrl(f);
+      const plate = await logoToPlate(raw);
+      state.logoDataUrl = raw;
+      state.logoPlateUrl = plate;
+      $('logoThumb').innerHTML = `<img src="${plate}" alt="logo"/>`;
+      $('logoName').textContent = f.name;
+      $('logoClear').style.display = 'inline-flex';
+      // invalidate any previously generated QRs (logo changed)
+      revokeAllBlobs();
+      state.teachers.forEach(t => { t.blob = null; t.blobUrl = ''; });
+      state.generated = 0;
+      renderTable(); renderGrid();
+      $('zipBtn').disabled = true;
+      refreshPreview();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  $('logoClear').addEventListener('click', () => {
+    state.logoDataUrl = null;
+    state.logoPlateUrl = null;
+    $('logoIn').value = '';
+    $('logoThumb').innerHTML = `<div class="ph">Click to<br/>upload</div>`;
+    $('logoName').textContent = 'No logo selected';
+    $('logoClear').style.display = 'none';
+    revokeAllBlobs();
+    state.teachers.forEach(t => { t.blob = null; t.blobUrl = ''; });
+    state.generated = 0;
+    renderTable(); renderGrid();
+    $('zipBtn').disabled = true;
+    refreshPreview();
+  });
+
+  function revokeAllBlobs(){
+    for (const t of state.teachers) {
+      if (t.blobUrl) { URL.revokeObjectURL(t.blobUrl); t.blobUrl = ''; }
+    }
+  }
+
   // ---------- Preview (live) ----------
+  let pvDebounce;
   function refreshPreview(){
     const sample = state.teachers[0] || { name:'Anita Sharma', email:'anita@example.com' };
     const text = buildQrText(sample);
     $('pvText').textContent = text;
-    $('pvImg').src = qrUrlFor(text);
     $('stEvent').textContent = `${$('evName').value.trim() || '—'} ${$('evYear').value || ''}`.trim();
-    // Re-render qr text column in table
     if(state.teachers.length){
       state.teachers.forEach(t => t.qrText = buildQrText(t));
       renderTable();
     }
+    clearTimeout(pvDebounce);
+    pvDebounce = setTimeout(() => {
+      const host = document.createElement('div');
+      const qr = makeQRStyling(text, { width: 192, height: 192 });
+      qr.append(host);
+      // qr-code-styling appends a canvas inside host
+      const target = document.querySelector('.preview-qr');
+      const old = target.querySelector('canvas, .qr-preview-host');
+      host.className = 'qr-preview-host';
+      if (old) target.replaceChild(host, old); else target.insertBefore(host, target.firstChild);
+    }, 120);
   }
   ['evName','evYear','qrTpl','qrSize'].forEach(id => $(id).addEventListener('input', refreshPreview));
 
@@ -376,6 +548,7 @@
       showAlert($('parseAlert'), 'err', 'No rows found in the file.');
       return;
     }
+    revokeAllBlobs();
     // case-insensitive column lookup
     const teachers = [];
     let skipped = 0;
@@ -385,7 +558,7 @@
       const name = String(lower['name'] ?? lower['teacher'] ?? lower['teacher_name'] ?? '').trim();
       const email = String(lower['email'] ?? lower['mail'] ?? '').trim();
       if(!name){ skipped++; continue; }
-      teachers.push({ name, email, qrText:'', qrUrl:'', blob:null });
+      teachers.push({ name, email, qrText:'', blob:null, blobUrl:'' });
     }
     if(teachers.length === 0){
       showAlert($('parseAlert'), 'err', 'No valid rows found. Make sure your file has a "name" column.');
@@ -418,6 +591,7 @@
   });
 
   $('clearList').addEventListener('click', () => {
+    revokeAllBlobs();
     state.teachers = [];
     state.generated = 0;
     fileIn.value = '';
@@ -455,11 +629,11 @@
     if(state.teachers.length === 0){ g.innerHTML = ''; return; }
     g.innerHTML = state.teachers.map((t, i) => `
       <div class="qr-card" data-testid="qr-card-${i}">
-        <div class="qr-img">${t.qrUrl ? `<img src="${t.qrUrl}" alt="QR for ${escapeAttr(t.name)}"/>` : `<span style="color:var(--muted);font-size:12px">pending</span>`}</div>
+        <div class="qr-img">${t.blobUrl ? `<img src="${t.blobUrl}" alt="QR for ${escapeAttr(t.name)}"/>` : `<span style="color:var(--muted);font-size:12px">pending</span>`}</div>
         <div class="qr-name">${escapeHtml(t.name)}</div>
         <div class="qr-mail">${escapeHtml(t.email || '')}</div>
         <div class="row">
-          <a class="btn btn-ghost btn-sm" ${t.qrUrl ? `href="${t.qrUrl}" download="${sanitizeFilename(t.name)}_QR.png"` : 'disabled'} data-testid="dl-${i}">Download</a>
+          <a class="btn btn-ghost btn-sm" ${t.blobUrl ? `href="${t.blobUrl}" download="${sanitizeFilename(t.name)}_QR.png"` : 'aria-disabled="true" style="pointer-events:none;opacity:.5"'} data-testid="dl-${i}">Download</a>
         </div>
       </div>
     `).join('');
@@ -472,12 +646,6 @@
   $('genBtn').addEventListener('click', generateAll);
   $('zipBtn').addEventListener('click', downloadZip);
 
-  async function fetchAsBlob(url){
-    const r = await fetch(url, { mode:'cors' });
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.blob();
-  }
-
   async function generateAll(){
     if(state.teachers.length === 0) return;
     hideAlert($('genAlert'));
@@ -486,22 +654,25 @@
     $('prog').classList.add('show');
     $('progBar').style.width = '0%';
 
+    revokeAllBlobs();
+
     const total = state.teachers.length;
     let done = 0, failed = 0;
 
     for(const t of state.teachers){
       t.qrText = buildQrText(t);
-      t.qrUrl = qrUrlFor(t.qrText);
       try{
-        t.blob = await fetchAsBlob(t.qrUrl);
+        t.blob = await qrToBlob(t.qrText);
+        t.blobUrl = URL.createObjectURL(t.blob);
       } catch(err){
-        t.blob = null; failed++;
+        t.blob = null; t.blobUrl = ''; failed++;
       }
       done++;
       $('progBar').style.width = `${Math.round(done/total*100)}%`;
       $('genStatus').textContent = `Generating ${done}/${total}…`;
-      // incremental render every few
       if(done % 4 === 0 || done === total) renderGrid();
+      // yield to keep UI responsive
+      await new Promise(r => setTimeout(r, 0));
     }
 
     state.generated = state.teachers.filter(t => t.blob).length;
@@ -511,9 +682,10 @@
     $('genStatus').textContent = `Done. ${state.generated}/${total} generated${failed ? `, ${failed} failed` : ''}.`;
 
     if(failed > 0){
-      showAlert($('genAlert'), 'warn', `${failed} QR code(s) failed to download. They will be skipped in the ZIP.`);
+      showAlert($('genAlert'), 'warn', `${failed} QR code(s) failed to render. They will be skipped in the ZIP.`);
     } else {
-      showAlert($('genAlert'), 'ok', `All ${total} QR codes generated. Click "Download ZIP" to save them.`);
+      const logoNote = state.logoPlateUrl ? ' with your logo embedded' : '';
+      showAlert($('genAlert'), 'ok', `All ${total} QR codes generated${logoNote}. Click "Download ZIP" to save them.`);
     }
   }
 
