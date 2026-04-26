@@ -1576,7 +1576,32 @@
   let persistTimer;
   function schedulePersist(){
     clearTimeout(persistTimer);
-    persistTimer = setTimeout(persist, 250);
+    persistTimer = setTimeout(() => {
+      persist();
+      // Auto re-sync to cloud if connected
+      if(state.eventCode){
+        cloudAutoSync();
+      }
+    }, 350);
+  }
+
+  let cloudAutoTimer;
+  function cloudAutoSync(){
+    clearTimeout(cloudAutoTimer);
+    cloudAutoTimer = setTimeout(async () => {
+      if(!state.eventCode) return;
+      try{
+        await fetch(`/api/events/${state.eventCode}/recipients/bulk`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ recipients: recipientsForCloud(), replace: true })
+        });
+        // also update event meta
+        await fetch(`/api/events/${state.eventCode}`, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(evMetaForCloud())
+        });
+      } catch(_){}
+    }, 600);
   }
   ['evName','evYear','evDate','evVenue','orgEmail','qrTpl','qrSize','f1Label','f2Label']
     .forEach(id => $(id).addEventListener('input', schedulePersist));
