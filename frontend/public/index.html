@@ -6,11 +6,12 @@
 <title>QR Events · Bulk &amp; Single QR Code Generator</title>
 <style>
   :root{
-    --bg: #fbfaf6;
+    --bg: #f5efe2;
+    --bg-2: #ece3cf;
     --surface: rgba(255,255,255,.78);
     --surface-solid: #ffffff;
     --surface-2: #f4f1ea;
-    --border: #e7e2d6;
+    --border: #e7dcc6;
     --text: #1a1a1a;
     --muted: #6b675e;
     --accent: #c2410c;
@@ -57,50 +58,100 @@
   ::selection{background:var(--accent-soft);color:var(--accent-ink)}
 
   /* ============ Animated gradient mesh background ============ */
-  .bg-mesh{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
-  .bg-mesh::before{
-    content:"";position:absolute;inset:-2px;
+  .bg-mesh{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;
     background:
-      radial-gradient(800px 600px at 12% 8%,  rgba(245,158,11,.28), transparent 60%),
-      radial-gradient(700px 600px at 88% 12%, rgba(234,88,12,.22),  transparent 65%),
-      radial-gradient(900px 700px at 65% 95%, rgba(194,65,12,.18),  transparent 60%),
-      radial-gradient(700px 500px at 5% 95%,  rgba(251,191,36,.18), transparent 60%);
-    animation:meshShift 22s ease-in-out infinite alternate
+      radial-gradient(1100px 800px at 10% -10%, rgba(245,158,11,.55), transparent 60%),
+      radial-gradient(900px  700px at 95% 0%,   rgba(234,88,12,.50),  transparent 65%),
+      radial-gradient(1000px 800px at 70% 110%, rgba(194,65,12,.45),  transparent 60%),
+      radial-gradient(800px  700px at -10% 110%,rgba(251,191,36,.45), transparent 60%),
+      linear-gradient(180deg, #f7e9c8 0%, #f0d8a8 35%, #ecc78a 70%, #e8b56b 100%)
+  }
+  .bg-mesh::before{
+    content:"";position:absolute;inset:-30px;
+    background:
+      radial-gradient(420px 420px at var(--bx1,20%) var(--by1,30%), rgba(234,88,12,.55), transparent 65%),
+      radial-gradient(360px 360px at var(--bx2,80%) var(--by2,65%), rgba(245,158,11,.55), transparent 65%),
+      radial-gradient(500px 500px at var(--bx3,55%) var(--by3,90%), rgba(194,65,12,.45), transparent 65%);
+    filter:blur(40px);
+    animation:meshDrift 28s ease-in-out infinite alternate
   }
   .bg-mesh::after{
     content:"";position:absolute;inset:0;
     background-image:
-      radial-gradient(circle at 1px 1px, rgba(0,0,0,.05) 1px, transparent 1.5px);
-    background-size:18px 18px;mix-blend-mode:multiply;opacity:.4
+      radial-gradient(circle at 1px 1px, rgba(0,0,0,.07) 1px, transparent 1.5px);
+    background-size:22px 22px;mix-blend-mode:multiply;opacity:.55
   }
   @media (prefers-color-scheme: dark){
+    .bg-mesh{background:
+      radial-gradient(1100px 800px at 10% -10%, rgba(245,158,11,.18), transparent 60%),
+      radial-gradient(900px 700px at 95% 0%,   rgba(234,88,12,.18),  transparent 65%),
+      radial-gradient(1000px 800px at 70% 110%, rgba(194,65,12,.18),  transparent 60%),
+      linear-gradient(180deg, #0d0c08 0%, #14110a 50%, #0e0c07 100%)
+    }
     .bg-mesh::after{background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 1.5px);mix-blend-mode:screen;opacity:.5}
   }
-  @keyframes meshShift{
-    0%   { transform: translate3d(0,0,0)   scale(1)    }
-    50%  { transform: translate3d(-20px,10px,0) scale(1.04) }
-    100% { transform: translate3d(15px,-15px,0) scale(1.02) }
+  @keyframes meshDrift{
+    0%   { --bx1:18%; --by1:25%; --bx2:82%; --by2:60%; --bx3:55%; --by3:88%; transform: scale(1) }
+    50%  { --bx1:30%; --by1:60%; --bx2:65%; --by2:30%; --bx3:38%; --by3:70%; transform: scale(1.04) }
+    100% { --bx1:55%; --by1:35%; --bx2:88%; --by2:80%; --bx3:25%; --by3:60%; transform: scale(1.02) }
   }
+  /* note: CSS custom-property animation in keyframes works in modern browsers via @property registration; use a fallback transform too */
+  @property --bx1{syntax:"<percentage>";inherits:false;initial-value:20%}
+  @property --by1{syntax:"<percentage>";inherits:false;initial-value:30%}
+  @property --bx2{syntax:"<percentage>";inherits:false;initial-value:80%}
+  @property --by2{syntax:"<percentage>";inherits:false;initial-value:65%}
+  @property --bx3{syntax:"<percentage>";inherits:false;initial-value:55%}
+  @property --by3{syntax:"<percentage>";inherits:false;initial-value:90%}
 
   .wrap{max-width:1100px;margin:0 auto;padding:28px 22px 80px;position:relative;z-index:1}
 
   /* ============ Hero ============ */
   header.hero{
-    margin-bottom:30px;padding:30px 28px;border-radius:20px;
-    background:var(--surface);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    border:1px solid var(--border);box-shadow:var(--shadow);
-    display:flex;align-items:center;gap:18px;flex-wrap:wrap
+    position:relative;overflow:hidden;
+    margin-bottom:30px;padding:42px 36px 38px;border-radius:24px;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.86), rgba(255,255,255,.55));
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.6);
+    box-shadow:0 30px 80px -30px rgba(120,60,10,.35), 0 1px 0 rgba(255,255,255,.7) inset
   }
+  @media (prefers-color-scheme: dark){
+    header.hero{background:linear-gradient(135deg, rgba(40,30,16,.86), rgba(28,22,14,.6));border-color:rgba(255,255,255,.06)}
+  }
+  .hero-deco{position:absolute;inset:0;pointer-events:none;opacity:.55}
+  .hero-deco svg{position:absolute;right:-40px;top:-30px;width:340px;height:340px;color:#c2410c;opacity:.18;transform:rotate(8deg)}
+  .hero-deco .ring{position:absolute;width:280px;height:280px;border-radius:50%;
+    background:conic-gradient(from 0deg, rgba(245,158,11,.6), rgba(234,88,12,.0), rgba(194,65,12,.6), rgba(245,158,11,.0), rgba(245,158,11,.6));
+    filter:blur(30px);opacity:.55;left:-80px;bottom:-110px;animation:spin 24s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .hero-row{position:relative;display:flex;gap:22px;align-items:center;flex-wrap:wrap}
   .logo-mark{
-    width:54px;height:54px;border-radius:14px;flex-shrink:0;
+    width:64px;height:64px;border-radius:18px;flex-shrink:0;
     background:conic-gradient(from 220deg at 50% 50%, #f59e0b, #ea580c, #c2410c, #f59e0b);
-    display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;letter-spacing:.5px;
-    box-shadow:0 6px 18px -6px rgba(194,65,12,.5)
+    display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px;letter-spacing:.5px;
+    box-shadow:0 12px 28px -8px rgba(194,65,12,.6), 0 0 0 6px rgba(255,255,255,.5)
   }
   .hero-text{flex:1;min-width:240px}
-  h1{font-size:clamp(26px,3vw,32px);margin:0;letter-spacing:-.02em;font-weight:700;line-height:1.1}
-  h1 .grad{background:linear-gradient(90deg,#c2410c,#ea580c 50%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .tag{color:var(--muted);font-size:14px;margin-top:6px;line-height:1.5;max-width:62ch}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 11px;border-radius:999px;
+    background:rgba(255,255,255,.6);border:1px solid rgba(194,65,12,.25);color:var(--accent-ink);
+    font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px}
+  .eyebrow .pulse{width:7px;height:7px;border-radius:50%;background:#c2410c;box-shadow:0 0 0 0 rgba(194,65,12,.7);animation:pulse 1.6s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(194,65,12,0)}100%{box-shadow:0 0 0 0 rgba(194,65,12,0)}}
+  h1{font-size:clamp(28px,3.6vw,44px);margin:0;letter-spacing:-.025em;font-weight:800;line-height:1.05}
+  h1 .grad{background:linear-gradient(90deg,#7c2d12,#c2410c 35%,#ea580c 65%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--muted);font-size:14.5px;margin-top:10px;line-height:1.55;max-width:62ch}
+  .feature-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
+    background:rgba(255,255,255,.7);border:1px solid var(--border);color:var(--text);
+    font-size:12.5px;font-weight:600
+  }
+  .pill .ico{width:14px;height:14px;color:var(--accent)}
+  @media (prefers-color-scheme: dark){
+    .eyebrow{background:rgba(255,255,255,.04);border-color:rgba(251,146,60,.25);color:#fed7aa}
+    .pill{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
+  }
 
   /* ============ Cards ============ */
   .card{
@@ -250,6 +301,80 @@
   [data-mode-content]{display:none}
   [data-mode-content].active{display:block}
 
+  /* ============ Check-in scanner ============ */
+  .checkin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 14px}
+  @media (max-width:680px){.checkin-stats{grid-template-columns:repeat(2,1fr)}}
+  .checkin-stats .stat.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+  .checkin-stats .stat.warn{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+  .checkin-stats .stat.ok .lbl, .checkin-stats .stat.warn .lbl{color:inherit;opacity:.8}
+
+  .ci-row{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:6px}
+  @media (max-width:760px){.ci-row{grid-template-columns:1fr}}
+  .scan-frame{
+    position:relative;width:100%;aspect-ratio:1/1;max-height:420px;border-radius:14px;overflow:hidden;
+    background:#0d0c08;border:1px solid var(--border)
+  }
+  .scan-frame video{width:100%;height:100%;object-fit:cover;display:block}
+  .scan-empty{position:absolute;inset:0;display:grid;place-items:center;color:#a39a85;gap:10px;text-align:center;font-size:13px;background:repeating-linear-gradient(45deg, rgba(255,255,255,.025) 0 8px, transparent 8px 18px), #14110a}
+  .scan-empty.hide{display:none}
+  .scan-overlay{position:absolute;inset:0;pointer-events:none}
+  .scan-overlay .scan-corners{
+    position:absolute;inset:14%;border-radius:14px;
+    background:
+      linear-gradient(#fff,#fff) left top   /28px 4px no-repeat,
+      linear-gradient(#fff,#fff) left top   /4px 28px no-repeat,
+      linear-gradient(#fff,#fff) right top  /28px 4px no-repeat,
+      linear-gradient(#fff,#fff) right top  /4px 28px no-repeat,
+      linear-gradient(#fff,#fff) left bottom /28px 4px no-repeat,
+      linear-gradient(#fff,#fff) left bottom /4px 28px no-repeat,
+      linear-gradient(#fff,#fff) right bottom /28px 4px no-repeat,
+      linear-gradient(#fff,#fff) right bottom /4px 28px no-repeat;
+    opacity:.55
+  }
+  .scan-overlay .scan-line{
+    position:absolute;left:14%;right:14%;top:14%;height:2px;border-radius:2px;
+    background:linear-gradient(90deg, transparent, #fb923c, transparent);
+    box-shadow:0 0 12px rgba(251,146,60,.7);
+    animation:scanmove 2.4s ease-in-out infinite alternate
+  }
+  @keyframes scanmove{from{transform:translateY(0)}to{transform:translateY(min(72%,300px))}}
+
+  .ci-side label{margin-bottom:6px}
+  .ci-side .hint{margin-top:8px}
+
+  /* ============ Modal ============ */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    background:rgba(15,12,5,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:1000;padding:20px}
+  .modal.show{display:flex}
+  .modal-card{
+    width:min(460px, 100%);background:var(--surface-solid);border:1px solid var(--border);
+    border-radius:18px;padding:22px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5);
+    animation:modalIn .15s ease-out
+  }
+  @keyframes modalIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;gap:14px;align-items:center;margin-bottom:14px}
+  .modal-emoji{width:54px;height:54px;border-radius:14px;background:var(--accent-soft);display:grid;place-items:center;font-size:26px;flex-shrink:0}
+  .modal-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+  .modal-title{font-size:20px;font-weight:700;letter-spacing:-.01em;margin-top:2px}
+  .modal-sub{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-all}
+  .modal-card.ok .modal-emoji{background:var(--ok-soft)}
+  .modal-card.ok .modal-eyebrow{color:var(--ok)}
+  .modal-card.warn .modal-emoji{background:var(--warn-soft)}
+  .modal-card.warn .modal-eyebrow{color:var(--warn)}
+  .modal-card.err .modal-emoji{background:var(--err-soft)}
+  .modal-card.err .modal-eyebrow{color:var(--err)}
+  .counter{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .cbtn{
+    width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface-solid);
+    font-size:18px;font-weight:700;cursor:pointer;color:var(--text)
+  }
+  .cbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .counter input{width:70px;text-align:center;font-weight:700;font-size:16px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+
+  .badge-ok{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--ok-soft);color:var(--ok);font-size:11px;font-weight:700;letter-spacing:.04em}
+  .badge-warn{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--warn-soft);color:var(--warn);font-size:11px;font-weight:700;letter-spacing:.04em}
+
   /* ============ Print styles ============ */
   .print-sheet{display:none}
   .print-sheet h3{font-size:16px;margin:0 0 8px}
@@ -284,12 +409,33 @@
 <div class="wrap no-print">
 
   <header class="hero">
-    <div class="logo-mark">QR</div>
-    <div class="hero-text">
-      <h1>Generate <span class="grad">event QR codes</span> — bulk or single</h1>
-      <div class="tag">
-        Upload an Excel/CSV list or generate one at a time. Embed your logo, download a ZIP,
-        print as badges, or email each pass directly to the recipient. All for any event, any year.
+    <div class="hero-deco" aria-hidden="true">
+      <div class="ring"></div>
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="6" y="6" width="18" height="18" rx="3"/><rect x="11" y="11" width="8" height="8" fill="currentColor"/>
+        <rect x="40" y="6" width="18" height="18" rx="3"/><rect x="45" y="11" width="8" height="8" fill="currentColor"/>
+        <rect x="6" y="40" width="18" height="18" rx="3"/><rect x="11" y="45" width="8" height="8" fill="currentColor"/>
+        <rect x="32" y="32" width="6" height="6"/><rect x="44" y="32" width="6" height="6"/>
+        <rect x="32" y="44" width="6" height="6"/><rect x="44" y="44" width="6" height="6"/>
+        <rect x="38" y="38" width="6" height="6"/><rect x="50" y="50" width="6" height="6"/>
+      </svg>
+    </div>
+    <div class="hero-row">
+      <div class="logo-mark">QR</div>
+      <div class="hero-text">
+        <span class="eyebrow"><span class="pulse"></span>Event QR Toolkit</span>
+        <h1>Generate, deliver &amp; <span class="grad">check‑in attendees</span> with QR codes.</h1>
+        <p class="tag">
+          Upload an Excel/CSV list or generate one at a time. Embed your logo, download a ZIP,
+          print as badges, email each pass directly to the recipient — then scan QRs at the door for live attendance.
+        </p>
+        <div class="feature-pills">
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/></svg>Bulk &amp; single</span>
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M3 7h4l2-3h6l2 3h4v12H3z"/></svg>Logo embedded</span>
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>Email delivery</span>
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="3" width="12" height="6" rx="1"/><rect x="6" y="14" width="12" height="7" rx="1"/><path d="M6 9H4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/></svg>Print badges</span>
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="4"/></svg>Live check‑in</span>
+        </div>
       </div>
     </div>
   </header>
@@ -379,6 +525,7 @@
     <div class="tabs" role="tablist">
       <button class="tab active" data-tab="bulk" type="button" data-testid="tab-bulk"><span class="dot"></span>Bulk upload</button>
       <button class="tab" data-tab="single" type="button" data-testid="tab-single"><span class="dot"></span>Single QR</button>
+      <button class="tab" data-tab="checkin" type="button" data-testid="tab-checkin"><span class="dot"></span>Check‑in</button>
     </div>
 
     <!-- Bulk mode -->
@@ -431,7 +578,94 @@
         <span class="hint" id="singleStatus"></span>
       </div>
     </div>
+
+    <!-- Check-in mode -->
+    <div data-mode-content="checkin">
+      <h2>Check-in scanner</h2>
+      <div class="sub">Scan QR codes with your camera (or paste manually) to check in attendees in real-time.</div>
+
+      <div class="checkin-stats">
+        <div class="stat"><div class="num" id="ciTotal" data-testid="ci-stat-total">0</div><div class="lbl">Total recipients</div></div>
+        <div class="stat ok"><div class="num" id="ciIn" data-testid="ci-stat-in">0</div><div class="lbl">Checked in</div></div>
+        <div class="stat warn"><div class="num" id="ciPending" data-testid="ci-stat-pending">0</div><div class="lbl">Pending</div></div>
+        <div class="stat"><div class="num" id="ciPeople" data-testid="ci-stat-people">0</div><div class="lbl">Total people</div></div>
+      </div>
+
+      <div class="ci-row">
+        <div class="ci-scanner">
+          <div class="scan-frame" id="scanFrame">
+            <video id="scanVideo" playsinline muted autoplay></video>
+            <div class="scan-overlay"><div class="scan-corners"></div><div class="scan-line"></div></div>
+            <div class="scan-empty" id="scanEmpty">
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M21 7V5a2 2 0 0 0-2-2h-2"/>
+                <path d="M3 17v2a2 2 0 0 0 2 2h2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+                <rect x="7" y="7" width="10" height="10" rx="1"/>
+              </svg>
+              <div>Camera off</div>
+            </div>
+          </div>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn btn-primary" id="scanStart" type="button" data-testid="scan-start-btn">Start camera</button>
+            <button class="btn btn-ghost" id="scanStop" type="button" disabled data-testid="scan-stop-btn">Stop</button>
+            <span class="hint" id="scanStatus"></span>
+          </div>
+        </div>
+
+        <div class="ci-side">
+          <label for="manualScan">Manual entry</label>
+          <input id="manualScan" type="text" placeholder="Paste QR text here" data-testid="manual-scan-input"/>
+          <button class="btn btn-ghost btn-sm" id="manualScanBtn" type="button" style="margin-top:6px" data-testid="manual-scan-btn">Look up</button>
+          <div class="hint" style="margin-top:8px">No recipients loaded? Switch to Bulk or Single tab to add some — they auto-sync here. State is also saved in your browser.</div>
+
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" id="exportCsvBtn" type="button" data-testid="export-csv-btn">Export attendance CSV</button>
+            <button class="btn btn-ghost btn-sm" id="resetCheckinsBtn" type="button" data-testid="reset-checkins-btn">Reset all check-ins</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert" id="ciAlert"></div>
+
+      <h3 style="margin:18px 0 8px;font-size:14px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase">Recent check-ins</h3>
+      <div class="table-wrap" style="max-height:260px">
+        <table>
+          <thead>
+            <tr><th>Time</th><th>Name</th><th>Email</th><th style="width:80px">People</th><th style="width:90px">Status</th></tr>
+          </thead>
+          <tbody id="ciTbody" data-testid="checkin-tbody">
+            <tr><td colspan="5" class="empty">No activity yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </section>
+
+  <!-- Check-in confirm modal -->
+  <div class="modal" id="ciModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card" data-testid="checkin-modal">
+      <div class="modal-head">
+        <div class="modal-emoji" id="modalEmoji">👋</div>
+        <div>
+          <div class="modal-eyebrow" id="modalEyebrow">Found</div>
+          <div class="modal-title" id="modalTitle">—</div>
+          <div class="modal-sub" id="modalSub">—</div>
+        </div>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <label>People in this group</label>
+        <div class="counter">
+          <button class="cbtn" id="cMinus" type="button" data-testid="people-minus">−</button>
+          <input id="cCount" type="number" min="1" value="1" data-testid="people-count"/>
+          <button class="cbtn" id="cPlus" type="button" data-testid="people-plus">+</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cCancel" type="button" data-testid="checkin-cancel">Cancel</button>
+        <button class="btn btn-primary" id="cConfirm" type="button" data-testid="checkin-confirm">Confirm check-in</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ============ Recipients table (bulk only) ============ -->
   <section class="card" id="recipientsCard" style="display:none">
@@ -489,6 +723,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <script>
 (() => {
@@ -1015,8 +1250,291 @@
     setTimeout(() => window.print(), 50);
   }
 
+  // -------- Persistence (localStorage) --------
+  const LS_KEY = 'qr-events-v1';
+  function persist(){
+    try{
+      const data = {
+        ev: { name:$('evName').value, year:$('evYear').value, date:$('evDate').value, venue:$('evVenue').value,
+              org:$('orgEmail').value, tpl:$('qrTpl').value, size:$('qrSize').value,
+              f1:$('f1Label').value, f2:$('f2Label').value },
+        recipients: state.recipients.map(r => ({
+          id:r.id, name:r.name, email:r.email, f1:r.f1, f2:r.f2, qrText:r.qrText
+        })),
+        checkins: state.checkins
+      };
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+    } catch(_){}
+  }
+  function restore(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      const ev = data.ev || {};
+      if(ev.name) $('evName').value = ev.name;
+      if(ev.year) $('evYear').value = ev.year;
+      if(ev.date) $('evDate').value = ev.date;
+      if(ev.venue) $('evVenue').value = ev.venue;
+      if(ev.org) $('orgEmail').value = ev.org;
+      if(ev.tpl) $('qrTpl').value = ev.tpl;
+      if(ev.size) $('qrSize').value = ev.size;
+      if(ev.f1) $('f1Label').value = ev.f1;
+      if(ev.f2) $('f2Label').value = ev.f2;
+      if(Array.isArray(data.recipients) && data.recipients.length){
+        state.recipients = data.recipients.map(r => ({
+          id:r.id || uid(), name:r.name||'', email:r.email||'', f1:r.f1||'', f2:r.f2||'',
+          qrText:r.qrText||'', blob:null, blobUrl:''
+        }));
+        state.recipients.forEach(r => r.qrText = buildQrText(r));
+        $('recipientsCard').style.display = 'block';
+      }
+      state.checkins = data.checkins || {};
+    } catch(_){}
+  }
+
+  // -------- Check-in --------
+  state.checkins = {};       // id -> { at: ISO, count: n }
+  state.scanning = false;
+  state.lastScanText = '';
+  state.lastScanAt = 0;
+  state.pendingScan = null;  // recipient pending confirmation
+  let scanStream = null, scanRAF = null, scanCanvas = null, scanCtx = null;
+
+  function findByQrText(text){
+    if(!text) return null;
+    const trimmed = text.trim();
+    return state.recipients.find(r => (r.qrText || '').trim() === trimmed) || null;
+  }
+
+  function refreshCheckinStats(){
+    const total = state.recipients.length;
+    const ins = Object.keys(state.checkins).length;
+    const pending = total - ins;
+    let people = 0;
+    for(const id in state.checkins) people += (state.checkins[id].count || 1);
+    $('ciTotal').textContent = total;
+    $('ciIn').textContent = ins;
+    $('ciPending').textContent = Math.max(0, pending);
+    $('ciPeople').textContent = people;
+  }
+
+  function renderCheckinTable(){
+    const tb = $('ciTbody');
+    const list = state.recipients
+      .filter(r => state.checkins[r.id])
+      .map(r => ({...r, ...state.checkins[r.id]}))
+      .sort((a,b) => (b.at || '').localeCompare(a.at || ''));
+    if(list.length === 0){
+      tb.innerHTML = `<tr><td colspan="5" class="empty">No activity yet.</td></tr>`;
+      return;
+    }
+    tb.innerHTML = list.map(c => `
+      <tr>
+        <td>${escapeHtml(formatTime(c.at))}</td>
+        <td>${escapeHtml(c.name)}</td>
+        <td>${escapeHtml(c.email || '—')}</td>
+        <td>${c.count || 1}</td>
+        <td><span class="badge-ok">Checked in</span></td>
+      </tr>`).join('');
+  }
+  function formatTime(iso){
+    if(!iso) return '—';
+    try{ return new Date(iso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}); }
+    catch(_){ return iso; }
+  }
+
+  // Camera scanner using jsQR
+  async function startScanner(){
+    if(state.scanning) return;
+    const video = $('scanVideo');
+    try{
+      scanStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }, audio:false
+      });
+      video.srcObject = scanStream;
+      await video.play();
+      $('scanEmpty').classList.add('hide');
+      state.scanning = true;
+      $('scanStart').disabled = true;
+      $('scanStop').disabled = false;
+      $('scanStatus').textContent = 'Scanning…';
+      scanCanvas = document.createElement('canvas');
+      scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+      scanLoop();
+    } catch(err){
+      $('scanStatus').textContent = `Camera error: ${err.message}`;
+      showAlert($('ciAlert'), 'err', `Cannot access camera: ${err.message}`);
+    }
+  }
+
+  function scanLoop(){
+    if(!state.scanning) return;
+    const video = $('scanVideo');
+    if(video.readyState === video.HAVE_ENOUGH_DATA){
+      const w = video.videoWidth, h = video.videoHeight;
+      if(w && h){
+        scanCanvas.width = w; scanCanvas.height = h;
+        scanCtx.drawImage(video, 0, 0, w, h);
+        try{
+          const imgData = scanCtx.getImageData(0, 0, w, h);
+          const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts:'attemptBoth' });
+          if(code && code.data){
+            handleScan(code.data);
+          }
+        } catch(_){}
+      }
+    }
+    scanRAF = requestAnimationFrame(scanLoop);
+  }
+
+  function stopScanner(){
+    state.scanning = false;
+    if(scanRAF) cancelAnimationFrame(scanRAF);
+    if(scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+    $('scanVideo').srcObject = null;
+    $('scanEmpty').classList.remove('hide');
+    $('scanStart').disabled = false;
+    $('scanStop').disabled = true;
+    $('scanStatus').textContent = 'Stopped';
+  }
+
+  function handleScan(text){
+    const now = Date.now();
+    // debounce same text within 2s
+    if(text === state.lastScanText && now - state.lastScanAt < 2000) return;
+    state.lastScanText = text; state.lastScanAt = now;
+    openCheckinModal(text);
+  }
+
+  function openCheckinModal(text){
+    const recipient = findByQrText(text);
+    const card = document.querySelector('#ciModal .modal-card');
+    card.classList.remove('ok','warn','err');
+    state.pendingScan = null;
+
+    if(!recipient){
+      card.classList.add('err');
+      $('modalEmoji').textContent = '❌';
+      $('modalEyebrow').textContent = 'Not found';
+      $('modalTitle').textContent = 'No matching recipient';
+      $('modalSub').textContent = text;
+      $('modalBody').style.display = 'none';
+      $('cConfirm').style.display = 'none';
+      $('cCancel').textContent = 'Close';
+    } else if(state.checkins[recipient.id]){
+      card.classList.add('warn');
+      const c = state.checkins[recipient.id];
+      $('modalEmoji').textContent = '⚠️';
+      $('modalEyebrow').textContent = 'Already checked in';
+      $('modalTitle').textContent = recipient.name;
+      $('modalSub').textContent = `${c.count} ${c.count === 1 ? 'person' : 'people'} · ${formatTime(c.at)}`;
+      $('modalBody').style.display = 'none';
+      $('cConfirm').style.display = 'none';
+      $('cCancel').textContent = 'Close';
+    } else {
+      card.classList.add('ok');
+      state.pendingScan = recipient;
+      $('modalEmoji').textContent = '👋';
+      $('modalEyebrow').textContent = 'Welcome';
+      $('modalTitle').textContent = recipient.name;
+      $('modalSub').textContent = recipient.email || recipient.qrText;
+      $('modalBody').style.display = '';
+      $('cCount').value = '1';
+      $('cConfirm').style.display = '';
+      $('cCancel').textContent = 'Cancel';
+    }
+    $('ciModal').classList.add('show');
+  }
+  function closeCheckinModal(){
+    $('ciModal').classList.remove('show');
+    state.pendingScan = null;
+  }
+  $('cCancel').addEventListener('click', closeCheckinModal);
+  $('ciModal').addEventListener('click', (e) => { if(e.target.id === 'ciModal') closeCheckinModal(); });
+  $('cMinus').addEventListener('click', () => { const v = Math.max(1, (parseInt($('cCount').value,10)||1) - 1); $('cCount').value = v; });
+  $('cPlus').addEventListener('click', () => { const v = Math.max(1, (parseInt($('cCount').value,10)||1) + 1); $('cCount').value = v; });
+  $('cConfirm').addEventListener('click', () => {
+    if(!state.pendingScan) return;
+    const r = state.pendingScan;
+    const count = Math.max(1, parseInt($('cCount').value, 10) || 1);
+    state.checkins[r.id] = { at: new Date().toISOString(), count };
+    persist();
+    refreshCheckinStats();
+    renderCheckinTable();
+    closeCheckinModal();
+  });
+
+  $('scanStart').addEventListener('click', startScanner);
+  $('scanStop').addEventListener('click', stopScanner);
+  $('manualScanBtn').addEventListener('click', () => {
+    const t = $('manualScan').value.trim();
+    if(!t) return;
+    handleScan(t);
+    $('manualScan').value = '';
+  });
+  $('manualScan').addEventListener('keydown', (e) => { if(e.key === 'Enter') $('manualScanBtn').click(); });
+
+  $('exportCsvBtn').addEventListener('click', () => {
+    const rows = [['Name','Email','QR text','Checked in at','People count','Status']];
+    for(const r of state.recipients){
+      const c = state.checkins[r.id];
+      rows.push([
+        r.name || '',
+        r.email || '',
+        r.qrText || '',
+        c ? c.at : '',
+        c ? (c.count || 1) : '',
+        c ? 'Checked in' : 'Pending'
+      ]);
+    }
+    const csv = rows.map(row => row.map(cellCsv).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ev = sanitizeFilename($('evName').value || 'Event');
+    const yr = String($('evYear').value || '').trim();
+    a.href = url; a.download = `${ev}${yr?'_'+yr:''}_attendance.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  });
+  function cellCsv(s){
+    const v = String(s ?? '');
+    if(/[",\n]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
+    return v;
+  }
+
+  $('resetCheckinsBtn').addEventListener('click', () => {
+    if(!confirm('Reset all check-ins? This cannot be undone.')) return;
+    state.checkins = {};
+    persist();
+    refreshCheckinStats();
+    renderCheckinTable();
+  });
+
+  // Persist on changes (debounced)
+  let persistTimer;
+  function schedulePersist(){
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(persist, 250);
+  }
+  ['evName','evYear','evDate','evVenue','orgEmail','qrTpl','qrSize','f1Label','f2Label']
+    .forEach(id => $(id).addEventListener('input', schedulePersist));
+
+  // Hook persistence into existing flows by wrapping renderTable
+  const _renderTable = renderTable;
+  renderTable = function(){ _renderTable(); refreshCheckinStats(); renderCheckinTable(); schedulePersist(); };
+
+  // Stop camera when leaving check-in tab
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    if(t.dataset.tab !== 'checkin' && state.scanning) stopScanner();
+  }));
+
   // -------- Init --------
+  restore();
   refreshPreview();
+  if(state.recipients.length){ renderTable(); renderGrid(); updateBtnStates(); }
+  refreshCheckinStats(); renderCheckinTable();
 })();
 </script>
 </body>

@@ -51,9 +51,26 @@ Generic website that generates a QR code for every teacher, for any year. Takes 
 - Print stylesheet via `@media print` — two layouts (A4 single + 4×2 badge sheet).
 - E2E verified: 6-recipient sample (with duplicate name) → generated → ZIP filenames deduped → email to verified address returned Resend `email_id` ✓.
 
+## Update (2026-02 — check-in scanner + landing polish)
+- **New "Check-in" tab** with live attendance scanner:
+  - Camera-based QR scanning via `jsQR` (rear camera by default, `getUserMedia`)
+  - Manual paste fallback for keyboards / pre-printed QRs
+  - Confirmation modal: Welcome / Already-checked-in / Not-found states
+  - People-count stepper (+/-) per scan to support group entries
+  - Live stats: total · checked-in · pending · total people
+  - Recent check-ins table (newest first, with timestamps)
+  - **Export attendance CSV** with full status (Name, Email, QR text, Checked-in at, People count, Status)
+  - Reset all check-ins (with confirm)
+- **localStorage persistence** — Setup fields, recipients list (incl. qrText) and check-ins survive page reloads. Auto-saved on every change.
+- **Landing page overhaul**:
+  - Saffron/amber gradient mesh background with animated drifting blobs (CSS `@property` + keyframes)
+  - Bigger hero with gradient title ("check-in attendees" highlighted), pulsing "EVENT QR TOOLKIT" eyebrow badge, decorative QR-pattern SVG, slow-spinning conic gradient ring, glass-morphism card with white rim highlight
+  - Feature pills: Bulk & single · Logo embedded · Email delivery · Print badges · Live check-in
+- E2E verified end-to-end: scan known → confirm → counter+1; scan again → "Already checked in"; scan random → "Not found"; CSV downloaded with correct rows.
+
 ## Backlog / Next
-- P1: Verify a real domain in Resend so emails can go to anyone (currently locked to API-key owner's email).
-- P1: Bundled default logo / brand presets per event.
-- P2: Save/Load setup as JSON, recent events history, manual dark-mode toggle.
-- P2: Multi-language email templates, custom email subject/body editor.
-- P2: Direct folder write via File System Access API (Chrome/Edge).
+- P1: Verify a domain in Resend so emails can go to anyone.
+- P1: Multi-device check-in via backend sync (currently localStorage only — single device/browser).
+- P2: Bundled default logo / brand presets per event, manual dark-mode toggle, multi-language email templates.
+- P2: Beep / haptic feedback on successful scan.
+- P2: Direct folder write via File System Access API.
