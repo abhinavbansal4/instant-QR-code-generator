@@ -68,9 +68,50 @@ Generic website that generates a QR code for every teacher, for any year. Takes 
   - Feature pills: Bulk & single · Logo embedded · Email delivery · Print badges · Live check-in
 - E2E verified end-to-end: scan known → confirm → counter+1; scan again → "Already checked in"; scan random → "Not found"; CSV downloaded with correct rows.
 
+## Update (2026-02 — multi-page architecture + cloud)
+
+### Three pages now (all served from `/app/frontend/public/`):
+1. **`/`** — Generator (existing) + new **Cloud sync** card (Save / Re-sync / Load by code / Disconnect, with Open scanner & Open dashboard share-link buttons).
+2. **`/scan.html`** — Standalone Scanner page (dark theme, large camera frame, manual paste, server-backed stats + recent activity, CSV export, reset). Connects via `?event=CODE` URL or input field. Polls stats every 2.5s, log every 4s.
+3. **`/dashboard.html`** — Live Event Dashboard (TV-friendly). Big animated counters (easeOutCubic), progress bar with %, check-ins/min rate, live activity feed (last 20) with fresh-row highlighting, event details panel, decorative QR pattern. Polls stats every 2s, feed every 3s.
+
+### Backend (FastAPI, MongoDB) — new collections + endpoints:
+- `events` (unique index on `event_code`)
+- `event_recipients` (unique index on `event_code+recipient_id`)
+- `event_checkins` (**unique index on `event_code+recipient_id`**, secondary index on `at` desc) — race-safe atomic insert.
+
+Endpoints:
+- `POST /api/events` — generate 8-char code (dash-separated, no confusables), create event
+- `GET/PUT/DELETE /api/events/{code}` — CRUD on event
+- `GET /api/events/{code}/stats` — total / checked_in / pending / people (aggregation)
+- `POST /api/events/{code}/recipients/bulk` — replace-all sync
+- `GET /api/events/{code}/recipients` — list
+- `POST /api/events/{code}/lookup` — find recipient by qr_text + current check-in
+- `POST /api/events/{code}/checkin` — atomic insert; returns **409 + existing checkin** on duplicate-key (multi-device safe)
+- `GET /api/events/{code}/checkins?limit=N` — recent first
+- `DELETE /api/events/{code}/checkins?confirm=YES` — reset
+- Email endpoints unchanged.
+
+### Multi-event concurrency
+- Every API call is scoped by `event_code` → unlimited events run in parallel without collision.
+- Two staff scanning the same person at the same instant on different devices → DB allows only one insert; second gets **409 Already Checked In** with the existing check-in details.
+
+### Persistence safety
+- All cloud-event data is in MongoDB → survives browser shutdowns, refreshes, and device switches.
+- All three pages cache the last `event_code` in localStorage for convenience (auto-reconnect on revisit).
+
+### Tested end-to-end (2026-02)
+- Generator → Save to cloud → code `3WPR-5NKV`
+- Scanner auto-connect → 6/6 recipients loaded
+- Cross-device: Device 1 checks in Anita (in=1) → Device 2 sees "Already checked in"
+- Cross-device different person: Device 2 checks in Ravi → in=2
+- Dashboard live: total=6, in=2, pending=4, 33%, 2 feed rows
+- **Race test**: 2 concurrent POSTs for same recipient → `{a: 409, b: 200}` (atomic, exactly one succeeds)
+- Dashboard auto-updated 2 → 3 after race ✓
+
 ## Backlog / Next
-- P1: Verify a domain in Resend so emails can go to anyone.
-- P1: Multi-device check-in via backend sync (currently localStorage only — single device/browser).
-- P2: Bundled default logo / brand presets per event, manual dark-mode toggle, multi-language email templates.
-- P2: Beep / haptic feedback on successful scan.
-- P2: Direct folder write via File System Access API.
+- P1: Verify domain in Resend so emails can go to anyone.
+- P1: Server-Sent Events for dashboard (replace polling) — nice-to-have for true real-time.
+- P2: Bulk recipient append (vs replace), CSV export from generator after cloud-load.
+- P2: Per-event admin/owner auth so random users can't reset another event.
+- P2: Manual dark-mode toggle on generator, brand presets, multi-language email templates.

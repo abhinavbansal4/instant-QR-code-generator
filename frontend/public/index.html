@@ -375,6 +375,21 @@
   .badge-ok{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--ok-soft);color:var(--ok);font-size:11px;font-weight:700;letter-spacing:.04em}
   .badge-warn{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--warn-soft);color:var(--warn);font-size:11px;font-weight:700;letter-spacing:.04em}
 
+  /* ============ Cloud sync card ============ */
+  .cloud-card{
+    background:linear-gradient(135deg, rgba(194,65,12,.08), rgba(245,158,11,.08));
+    border:1px solid rgba(194,65,12,.25);
+  }
+  .cloud-status{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--surface-solid);border:1px solid var(--border);flex-wrap:wrap}
+  .cloud-status.connected{background:var(--ok-soft);border-color:var(--ok)}
+  .cloud-status .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0}
+  .cloud-status.connected .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(74,222,128,.18)}
+  .code-pill{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;font-weight:700;letter-spacing:.05em;padding:4px 10px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border)}
+  .copy-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--muted)}
+  .copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .share-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .share-row a{flex:1;min-width:160px;justify-content:center}
+
   /* ============ Print styles ============ */
   .print-sheet{display:none}
   .print-sheet h3{font-size:16px;margin:0 0 8px}
@@ -518,6 +533,34 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <!-- ============ Cloud sync ============ -->
+  <section class="card cloud-card">
+    <h2>☁️ Cloud sync · multi-device check-in</h2>
+    <div class="sub">Save this event to the cloud so the Scanner page (any device) and the Live Dashboard can use it. Required for multi-device check-in.</div>
+
+    <div class="cloud-status" id="cloudStatus" data-testid="cloud-status">
+      <div class="dot"></div>
+      <div style="flex:1">
+        <div id="cloudText"><b>Local only</b> — recipients are saved in this browser. Save to cloud to enable scanner &amp; dashboard.</div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:10px">
+      <button class="btn btn-primary" id="cloudSaveBtn" type="button" data-testid="cloud-save-btn">Save event to cloud</button>
+      <button class="btn btn-ghost" id="cloudSyncBtn" type="button" disabled data-testid="cloud-sync-btn">Re-sync recipients</button>
+      <input id="loadCodeInput" type="text" placeholder="Or load existing code" data-testid="load-code-input" style="max-width:200px;text-transform:uppercase;letter-spacing:.04em"/>
+      <button class="btn btn-ghost" id="cloudLoadBtn" type="button" data-testid="cloud-load-btn">Load</button>
+      <button class="btn btn-ghost btn-sm" id="cloudDisconnectBtn" type="button" disabled data-testid="cloud-disconnect-btn">Disconnect</button>
+    </div>
+
+    <div class="share-row" id="shareRow" style="display:none">
+      <a class="btn btn-ghost" id="shareScan" target="_blank" data-testid="share-scan-link">📷 Open scanner →</a>
+      <a class="btn btn-ghost" id="shareDash" target="_blank" data-testid="share-dash-link">📊 Open dashboard →</a>
+    </div>
+
+    <div class="alert" id="cloudAlert"></div>
   </section>
 
   <!-- ============ Mode tabs ============ -->
@@ -1530,11 +1573,189 @@
     if(t.dataset.tab !== 'checkin' && state.scanning) stopScanner();
   }));
 
+  // -------- Cloud sync --------
+  state.eventCode = null;
+  state.cloudSyncTimer = null;
+
+  function evMetaForCloud(){
+    return {
+      name: $('evName').value.trim() || 'Event',
+      year: String($('evYear').value || '').trim(),
+      date: $('evDate').value.trim(),
+      venue: $('evVenue').value.trim(),
+      organizer_email: $('orgEmail').value.trim(),
+      qr_template: $('qrTpl').value.trim() || '{event_name} {year} - {name}',
+      qr_size: parseInt($('qrSize').value || '320', 10),
+      f1_label: $('f1Label').value.trim(),
+      f2_label: $('f2Label').value.trim()
+    };
+  }
+
+  function recipientsForCloud(){
+    return state.recipients.map(r => ({
+      recipient_id: r.id,
+      name: r.name || '',
+      email: r.email || '',
+      f1: r.f1 || '', f2: r.f2 || '',
+      qr_text: buildQrText(r)
+    }));
+  }
+
+  function setCloudUI(connected, code){
+    const status = $('cloudStatus');
+    if(connected && code){
+      status.classList.add('connected');
+      $('cloudText').innerHTML = `<b>Saved to cloud</b> · code <span class="code-pill" data-testid="event-code">${code}</span> <button class="copy-btn" data-testid="copy-code-btn" id="copyCodeBtn">Copy</button>`;
+      $('cloudSaveBtn').textContent = 'Update cloud event';
+      $('cloudSyncBtn').disabled = false;
+      $('cloudDisconnectBtn').disabled = false;
+      $('shareRow').style.display = 'flex';
+      $('shareScan').href = `/scan.html?event=${encodeURIComponent(code)}`;
+      $('shareDash').href = `/dashboard.html?event=${encodeURIComponent(code)}`;
+      // attach copy handler
+      const cb = document.getElementById('copyCodeBtn');
+      if(cb) cb.addEventListener('click', () => {
+        navigator.clipboard.writeText(code).then(() => {
+          cb.textContent = 'Copied'; setTimeout(() => cb.textContent = 'Copy', 1500);
+        });
+      });
+    } else {
+      status.classList.remove('connected');
+      $('cloudText').innerHTML = `<b>Local only</b> — recipients are saved in this browser. Save to cloud to enable scanner &amp; dashboard.`;
+      $('cloudSaveBtn').textContent = 'Save event to cloud';
+      $('cloudSyncBtn').disabled = true;
+      $('cloudDisconnectBtn').disabled = true;
+      $('shareRow').style.display = 'none';
+    }
+  }
+
+  async function cloudSaveEvent(){
+    hideAlert($('cloudAlert'));
+    if(state.recipients.length === 0){
+      showAlert($('cloudAlert'),'warn','Add at least one recipient before saving to cloud.');
+      return;
+    }
+    try{
+      let code = state.eventCode;
+      if(!code){
+        const r = await fetch('/api/events', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(evMetaForCloud())
+        });
+        const j = await r.json();
+        if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+        code = j.event_code;
+      } else {
+        // update meta
+        const r = await fetch(`/api/events/${code}`, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(evMetaForCloud())
+        });
+        if(!r.ok){ const j = await r.json().catch(()=>({})); throw new Error(j.detail || `HTTP ${r.status}`); }
+      }
+      // bulk recipients
+      const r2 = await fetch(`/api/events/${code}/recipients/bulk`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ recipients: recipientsForCloud(), replace: true })
+      });
+      const j2 = await r2.json();
+      if(!r2.ok) throw new Error(j2.detail || `HTTP ${r2.status}`);
+      state.eventCode = code;
+      localStorage.setItem('qr-events-last-code', code);
+      setCloudUI(true, code);
+      showAlert($('cloudAlert'),'ok',`Saved ${j2.count} recipients to cloud (event ${code}).`);
+      schedulePersist();
+    } catch(e){
+      showAlert($('cloudAlert'),'err',`Cloud save failed: ${e.message}`);
+    }
+  }
+
+  async function cloudSync(){
+    if(!state.eventCode) return;
+    try{
+      // also update event meta first
+      await fetch(`/api/events/${state.eventCode}`, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(evMetaForCloud())
+      });
+      const r = await fetch(`/api/events/${state.eventCode}/recipients/bulk`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ recipients: recipientsForCloud(), replace: true })
+      });
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      showAlert($('cloudAlert'),'ok',`Re-synced ${j.count} recipients.`);
+    } catch(e){
+      showAlert($('cloudAlert'),'err',`Sync failed: ${e.message}`);
+    }
+  }
+
+  async function cloudLoad(rawCode){
+    const code = (rawCode || '').trim().toUpperCase();
+    if(!code){ showAlert($('cloudAlert'),'warn','Enter an event code first.'); return; }
+    hideAlert($('cloudAlert'));
+    try{
+      const r = await fetch(`/api/events/${encodeURIComponent(code)}`);
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      // populate setup
+      const ev = j.event;
+      $('evName').value = ev.name || '';
+      $('evYear').value = ev.year || '';
+      $('evDate').value = ev.date || '';
+      $('evVenue').value = ev.venue || '';
+      $('orgEmail').value = ev.organizer_email || '';
+      $('qrTpl').value = ev.qr_template || '{event_name} {year} - {name}';
+      $('qrSize').value = ev.qr_size || 320;
+      $('f1Label').value = ev.f1_label || '';
+      $('f2Label').value = ev.f2_label || '';
+      // load recipients
+      const r2 = await fetch(`/api/events/${encodeURIComponent(code)}/recipients`);
+      const j2 = await r2.json();
+      revokeAllBlobs();
+      state.recipients = (j2.recipients || []).map(r => ({
+        id: r.recipient_id, name: r.name||'', email: r.email||'',
+        f1: r.f1||'', f2: r.f2||'', qrText: r.qr_text||'',
+        blob:null, blobUrl:''
+      }));
+      state.recipients.forEach(r => r.qrText = buildQrText(r));
+      state.generated = 0;
+      $('recipientsCard').style.display = 'block';
+      renderTable(); renderGrid(); updateBtnStates();
+      state.eventCode = code;
+      localStorage.setItem('qr-events-last-code', code);
+      setCloudUI(true, code);
+      refreshPreview();
+      showAlert($('cloudAlert'),'ok',`Loaded event ${code} with ${state.recipients.length} recipient(s). Click "Generate QR codes" to render PNGs.`);
+    } catch(e){
+      showAlert($('cloudAlert'),'err',`Load failed: ${e.message}`);
+    }
+  }
+
+  function cloudDisconnect(){
+    state.eventCode = null;
+    localStorage.removeItem('qr-events-last-code');
+    setCloudUI(false, null);
+    showAlert($('cloudAlert'),'ok','Disconnected from cloud event. Local recipients kept.');
+  }
+
+  $('cloudSaveBtn').addEventListener('click', cloudSaveEvent);
+  $('cloudSyncBtn').addEventListener('click', cloudSync);
+  $('cloudLoadBtn').addEventListener('click', () => cloudLoad($('loadCodeInput').value));
+  $('loadCodeInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') $('cloudLoadBtn').click(); });
+  $('cloudDisconnectBtn').addEventListener('click', cloudDisconnect);
+
   // -------- Init --------
   restore();
   refreshPreview();
   if(state.recipients.length){ renderTable(); renderGrid(); updateBtnStates(); }
   refreshCheckinStats(); renderCheckinTable();
+  // Auto-load last cloud event code if any (read-only — does not auto-sync)
+  const savedCode = localStorage.getItem('qr-events-last-code');
+  if(savedCode){
+    state.eventCode = savedCode;
+    setCloudUI(true, savedCode);
+  }
 })();
 </script>
 </body>

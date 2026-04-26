@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Live Event Dashboard</title>
+<style>
+  :root{
+    --bg:#08070a; --panel:#121017; --panel-2:#1b1925; --border:#2a2536;
+    --text:#f5f1ff; --muted:#a39db8;
+    --accent:#fb923c; --accent-2:#f97316; --accent-3:#fbbf24;
+    --ok:#4ade80; --ok-soft:#0e2c1a; --warn:#fbbf24; --warn-soft:#2a200c; --err:#f87171; --err-soft:#2a1010;
+    --magenta:#d946ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+    radial-gradient(1100px 900px at 10% -10%,rgba(245,158,11,.22),transparent 60%),
+    radial-gradient(900px 800px at 95% 0%,rgba(217,70,239,.18),transparent 60%),
+    radial-gradient(1000px 900px at 60% 110%,rgba(234,88,12,.22),transparent 60%);
+    animation:meshDrift 20s ease-in-out infinite alternate}
+  @keyframes meshDrift{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(20deg)}}
+  body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.04) 1px,transparent 1.5px);
+    background-size:24px 24px}
+
+  .wrap{max-width:1600px;margin:0 auto;padding:28px 28px 32px}
+  header{display:flex;align-items:center;gap:18px;margin-bottom:28px;flex-wrap:wrap}
+  .logo{width:54px;height:54px;border-radius:14px;background:conic-gradient(from 220deg,#f59e0b,#ea580c,#c2410c,#f59e0b);display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;letter-spacing:.5px;flex-shrink:0;
+    box-shadow:0 8px 22px -6px rgba(194,65,12,.6)}
+  .title-block{flex:1;min-width:240px}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(74,222,128,.7);animation:pulse 1.5s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+  h1{margin:6px 0 0;font-size:clamp(28px,3vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.05}
+  h1 .grad{background:linear-gradient(90deg,#fb923c,#fbbf24 60%,#d946ef);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);font-size:14px;margin-top:6px}
+  .clock{font-variant-numeric:tabular-nums;font-size:22px;font-weight:700;color:var(--text);letter-spacing:.04em;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:8px 14px}
+
+  .links{margin-left:auto;display:flex;gap:8px}
+  .link{color:var(--accent);text-decoration:none;font-size:13px;font-weight:600;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.03)}
+  .link:hover{border-color:var(--accent)}
+
+  /* Connect prompt */
+  .connect{max-width:560px;margin:60px auto;padding:28px;background:var(--panel);border:1px solid var(--border);border-radius:18px}
+  .connect h2{margin:0 0 6px;font-size:22px}
+  .connect p{margin:0 0 14px;color:var(--muted);font-size:14px}
+  .connect input{width:100%;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);color:var(--text);font:inherit;font-size:18px;letter-spacing:.06em;text-transform:uppercase;text-align:center;font-weight:700}
+  .btn{appearance:none;border:1px solid transparent;border-radius:12px;cursor:pointer;padding:12px 18px;font:inherit;font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:8px;justify-content:center;width:100%;margin-top:10px}
+  .btn-primary{background:linear-gradient(180deg,var(--accent-2),#c2410c);color:#fff}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .alert{border-radius:10px;padding:11px 14px;font-size:13px;margin-top:10px;border:1px solid transparent;display:none}
+  .alert.show{display:block}
+  .alert.err{background:var(--err-soft);color:var(--err);border-color:var(--err)}
+
+  /* Big stats grid */
+  .grid-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:24px}
+  @media (max-width:1100px){.grid-stats{grid-template-columns:repeat(2,1fr)}}
+  .big{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:22px 26px;position:relative;overflow:hidden}
+  .big::before{content:"";position:absolute;inset:-30%;background:radial-gradient(closest-side,var(--g1,rgba(251,146,60,.16)),transparent 70%);pointer-events:none}
+  .big.ok{--g1:rgba(74,222,128,.18)}
+  .big.warn{--g1:rgba(251,191,36,.18)}
+  .big.acc{--g1:rgba(251,146,60,.18)}
+  .big.purple{--g1:rgba(217,70,239,.18)}
+  .big .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;color:var(--muted);position:relative}
+  .big .num{font-size:clamp(56px,7vw,96px);font-weight:900;letter-spacing:-.04em;line-height:1;margin-top:6px;font-variant-numeric:tabular-nums;position:relative}
+  .big.ok .num{color:var(--ok)}
+  .big.warn .num{color:var(--warn)}
+  .big.acc .num{color:var(--accent)}
+  .big.purple .num{color:var(--magenta)}
+  .big .delta{position:relative;margin-top:8px;font-size:13px;color:var(--muted)}
+
+  /* Progress bar */
+  .progress-card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px 22px;margin-bottom:18px}
+  .progress-row{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+  .pct{font-size:42px;font-weight:900;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .progress-bar{flex:1;height:14px;background:var(--panel-2);border-radius:999px;overflow:hidden;border:1px solid var(--border)}
+  .progress-bar > span{display:block;height:100%;width:0%;background:linear-gradient(90deg,#fbbf24,#fb923c,#f97316);border-radius:999px;transition:width .6s ease}
+  .progress-meta{font-size:13px;color:var(--muted);margin-top:6px}
+
+  /* Recent list */
+  .layout{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+  @media (max-width:1100px){.layout{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px 22px}
+  .panel h3{margin:0 0 12px;font-size:13px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+  .feed{display:flex;flex-direction:column;gap:10px;max-height:560px;overflow-y:auto}
+  .row{
+    display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--border);
+    border-radius:14px;background:var(--panel-2);
+    animation:slideIn .35s ease-out
+  }
+  @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .row.fresh{border-color:var(--ok);box-shadow:0 0 0 4px rgba(74,222,128,.1)}
+  .avatar{width:42px;height:42px;border-radius:12px;background:conic-gradient(from var(--ang,0deg),#f97316,#fbbf24,#d946ef,#f97316);display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px;letter-spacing:.04em;flex-shrink:0}
+  .who{flex:1;min-width:0}
+  .who .nm{font-weight:700;font-size:15px}
+  .who .em{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .meta{text-align:right}
+  .meta .tt{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .meta .pp{font-size:13px;font-weight:700;color:var(--ok);margin-top:2px}
+
+  .feed-empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
+
+  .qr-pattern{position:absolute;right:-40px;bottom:-40px;width:220px;height:220px;color:var(--accent);opacity:.06;pointer-events:none}
+  .footer{margin-top:24px;text-align:center;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- Connect prompt (shown when no event yet) -->
+<div class="connect" id="connectCard">
+  <h2>Connect to event</h2>
+  <p>Enter the event code from the Generator page to start the live dashboard.</p>
+  <input id="evCode" type="text" placeholder="e.g. A4F9-X7K2" data-testid="event-code-input"/>
+  <button class="btn btn-primary" id="connectBtn" type="button" data-testid="connect-btn">Open dashboard</button>
+  <div class="alert" id="connectAlert"></div>
+</div>
+
+<!-- Dashboard -->
+<div class="wrap" id="dashWrap" style="display:none">
+  <header>
+    <div class="logo">QR</div>
+    <div class="title-block">
+      <span class="eyebrow"><span class="pulse"></span>Live · auto‑refresh</span>
+      <h1 id="hTitle">— <span class="grad">Loading…</span></h1>
+      <div class="sub" id="hSub">Event code · venue · date</div>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="links">
+      <a class="link" href="/" data-testid="link-generator">Generator</a>
+      <a class="link" id="scanLink" href="/scan.html" data-testid="link-scanner">Scanner</a>
+    </div>
+  </header>
+
+  <div class="grid-stats">
+    <div class="big acc">
+      <div class="lbl">Total recipients</div>
+      <div class="num" id="nTotal" data-testid="dash-total">0</div>
+      <div class="delta" id="dTotal">expected to attend</div>
+    </div>
+    <div class="big ok">
+      <div class="lbl">Checked in</div>
+      <div class="num" id="nIn" data-testid="dash-in">0</div>
+      <div class="delta" id="dIn">arrived &amp; verified</div>
+    </div>
+    <div class="big warn">
+      <div class="lbl">Pending</div>
+      <div class="num" id="nPending" data-testid="dash-pending">0</div>
+      <div class="delta" id="dPending">yet to arrive</div>
+    </div>
+    <div class="big purple">
+      <div class="lbl">Total people</div>
+      <div class="num" id="nPeople" data-testid="dash-people">0</div>
+      <div class="delta" id="dPeople">incl. group entries</div>
+    </div>
+  </div>
+
+  <div class="progress-card">
+    <div class="progress-row">
+      <div class="pct" id="pct" data-testid="dash-pct">0%</div>
+      <div class="progress-bar"><span id="pctBar"></span></div>
+    </div>
+    <div class="progress-meta" id="rate">— check-ins / min · last update —</div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <h3>Live activity</h3>
+      <div class="feed" id="feed" data-testid="dash-feed"><div class="feed-empty">No check-ins yet. Waiting for the first scan…</div></div>
+    </div>
+    <div class="panel" style="position:relative;overflow:hidden">
+      <h3>Event details</h3>
+      <svg class="qr-pattern" viewBox="0 0 64 64" fill="currentColor" stroke="none">
+        <rect x="6" y="6" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="11" y="11" width="8" height="8"/>
+        <rect x="40" y="6" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="45" y="11" width="8" height="8"/>
+        <rect x="6" y="40" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="11" y="45" width="8" height="8"/>
+        <rect x="32" y="32" width="6" height="6"/><rect x="44" y="32" width="6" height="6"/><rect x="32" y="44" width="6" height="6"/><rect x="44" y="44" width="6" height="6"/><rect x="38" y="38" width="6" height="6"/><rect x="50" y="50" width="6" height="6"/>
+      </svg>
+      <div id="evDetails" style="display:flex;flex-direction:column;gap:10px;font-size:14px;position:relative">
+        <div class="evKv"><div class="evK">Event code</div><div class="evV" id="evCodeText">—</div></div>
+        <div class="evKv"><div class="evK">Date</div><div class="evV" id="evDateText">—</div></div>
+        <div class="evKv"><div class="evK">Venue</div><div class="evV" id="evVenueText">—</div></div>
+        <div class="evKv"><div class="evK">Last activity</div><div class="evV" id="evLastText">—</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">Auto-refreshing every 2 seconds · Multi-device safe (server-side de-dup)</div>
+</div>
+
+<style>
+  .evKv{display:flex;justify-content:space-between;gap:14px;border-bottom:1px dashed var(--border);padding:8px 0}
+  .evK{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+  .evV{font-weight:700;font-variant-numeric:tabular-nums}
+</style>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const LS_KEY = 'qr-events-dash-code';
+
+  const params = new URLSearchParams(location.search);
+  const initialCode = (params.get('event') || localStorage.getItem(LS_KEY) || '').toUpperCase();
+  if(initialCode) $('evCode').value = initialCode;
+
+  $('connectBtn').addEventListener('click', () => connect($('evCode').value.trim().toUpperCase()));
+  $('evCode').addEventListener('keydown', (e) => { if(e.key === 'Enter') $('connectBtn').click(); });
+
+  let code = null;
+  let lastSeen = null;
+  let lastInCount = 0;
+  let lastInAt = null;
+  let countWindow = []; // [{at, n}] for rate
+
+  // Clock
+  setInterval(() => { try { $('clock').textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); } catch(_){}}, 1000);
+
+  function showAlert(el, kind, msg){ el.className = `alert show ${kind}`; el.textContent = msg; }
+  function hideAlert(el){ el.className = 'alert'; el.textContent = ''; }
+
+  async function connect(c){
+    if(!c){ showAlert($('connectAlert'),'err','Enter an event code.'); return; }
+    hideAlert($('connectAlert'));
+    try{
+      const r = await fetch(`/api/events/${encodeURIComponent(c)}`);
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      code = c;
+      localStorage.setItem(LS_KEY, c);
+      const url = new URL(location.href); url.searchParams.set('event', c); history.replaceState({},'',url);
+      $('connectCard').style.display = 'none';
+      $('dashWrap').style.display = 'block';
+      $('hTitle').innerHTML = `${escapeHtml(j.event.name || 'Event')} <span class="grad">${escapeHtml(j.event.year || '')}</span>`;
+      $('hSub').textContent = `${[j.event.date, j.event.venue].filter(Boolean).join(' · ')}`.trim() || `Event code: ${c}`;
+      $('evCodeText').textContent = c;
+      $('evDateText').textContent = j.event.date || '—';
+      $('evVenueText').textContent = j.event.venue || '—';
+      $('scanLink').href = `/scan.html?event=${encodeURIComponent(c)}`;
+      tickStats(); tickFeed();
+      setInterval(tickStats, 2000);
+      setInterval(tickFeed, 3000);
+    } catch(e){
+      showAlert($('connectAlert'),'err',`Could not connect: ${e.message}`);
+    }
+  }
+
+  async function tickStats(){
+    try{
+      const r = await fetch(`/api/events/${code}/stats`);
+      const j = await r.json();
+      const total = j.total || 0, ins = j.checked_in || 0, pend = j.pending || 0, ppl = j.people || 0;
+      animateNumber('nTotal', total);
+      animateNumber('nIn', ins);
+      animateNumber('nPending', pend);
+      animateNumber('nPeople', ppl);
+      const pct = total > 0 ? Math.round((ins / total) * 100) : 0;
+      $('pct').textContent = pct + '%';
+      $('pctBar').style.width = pct + '%';
+
+      // Track rate (per minute, last 5 min)
+      const now = Date.now();
+      if(ins > lastInCount){ countWindow.push({ at: now, n: ins - lastInCount }); }
+      countWindow = countWindow.filter(x => now - x.at <= 5*60*1000);
+      const sum = countWindow.reduce((a,b) => a + b.n, 0);
+      const rate = countWindow.length ? Math.round((sum / 5) * 60) / 60 : 0; // simple
+      const rpm = countWindow.length ? Math.round(sum * (60000 / Math.max(1, now - countWindow[0].at)) * 10) / 10 : 0;
+      $('rate').textContent = `${rpm.toFixed(1)} check-ins / min · last update ${new Date().toLocaleTimeString()}`;
+      lastInCount = ins;
+    } catch(_){}
+  }
+
+  async function tickFeed(){
+    try{
+      const r = await fetch(`/api/events/${code}/checkins?limit=20`);
+      const j = await r.json();
+      const items = j.checkins || [];
+      const feed = $('feed');
+      if(items.length === 0){
+        feed.innerHTML = `<div class="feed-empty">No check-ins yet. Waiting for the first scan…</div>`;
+        $('evLastText').textContent = '—';
+        return;
+      }
+      $('evLastText').textContent = formatTime(items[0].at);
+      feed.innerHTML = items.map(c => {
+        const initials = (c.name || '?').split(/\s+/).map(s => s[0]||'').slice(0,2).join('').toUpperCase();
+        const ang = (hashStr(c.recipient_id || c.name) % 360);
+        const isFresh = lastSeen ? (c.at > lastSeen) : false;
+        return `
+          <div class="row ${isFresh ? 'fresh' : ''}" data-testid="dash-row">
+            <div class="avatar" style="--ang:${ang}deg">${escapeHtml(initials || 'QR')}</div>
+            <div class="who"><div class="nm">${escapeHtml(c.name || '—')}</div><div class="em">${escapeHtml(c.email || c.qr_text || '')}</div></div>
+            <div class="meta"><div class="tt">${escapeHtml(formatTime(c.at))}</div><div class="pp">+${c.count || 1}</div></div>
+          </div>`;
+      }).join('');
+      lastSeen = items[0].at;
+    } catch(_){}
+  }
+
+  function animateNumber(id, target){
+    const el = $(id);
+    const from = parseInt(el.textContent.replace(/[^\d-]/g,'') || '0', 10);
+    const to = target;
+    if(from === to) return;
+    const start = performance.now(), dur = 600;
+    function step(t){
+      const p = Math.min(1, (t - start) / dur);
+      const e = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      const v = Math.round(from + (to - from) * e);
+      el.textContent = v.toLocaleString();
+      if(p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function formatTime(iso){ try { return new Date(iso).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); } catch(_){ return iso; } }
+  function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function hashStr(s){ let h=0; for(const ch of String(s)) h = (h*31 + ch.charCodeAt(0)) >>> 0; return h; }
+
+  if(initialCode) connect(initialCode);
+})();
+</script>
+</body>
+</html>
