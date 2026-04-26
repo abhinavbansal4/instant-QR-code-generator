@@ -105,6 +105,14 @@ class CheckinRequest(BaseModel):
     count: int = 1
 
 
+class WalkInRequest(BaseModel):
+    name: str
+    email: str = ''
+    f1: str = ''
+    f2: str = ''
+    count: int = 1
+
+
 # ---------------- Email models ----------------
 class SendQrEmailRequest(BaseModel):
     recipient_email: EmailStr
@@ -309,6 +317,63 @@ async def record_checkin(event_code: str, req: CheckinRequest):
             {"_id": 0}
         )
         raise HTTPException(409, {"status": "already_checked_in", "checkin": existing})
+
+
+@api_router.post("/events/{event_code}/walkin")
+async def walkin(event_code: str, req: WalkInRequest):
+    name = (req.name or '').strip()
+    if not name:
+        raise HTTPException(400, "Name is required")
+    ev = await db.events.find_one({"event_code": event_code}, {"_id": 0})
+    if not ev:
+        raise HTTPException(404, "Event not found")
+    template = ev.get("qr_template") or "{event_name} {year} - {name}"
+    qr_text = (template
+        .replace("{event_name}", ev.get("name") or "")
+        .replace("{year}", str(ev.get("year") or ""))
+        .replace("{name}", name)
+        .replace("{email}", req.email or "")
+        .replace("{f1}", req.f1 or "")
+        .replace("{f2}", req.f2 or ""))
+    recipient_id = "walk_" + uuid.uuid4().hex[:12]
+    rec = {
+        "event_code": event_code,
+        "recipient_id": recipient_id,
+        "name": name,
+        "email": (req.email or '').strip(),
+        "f1": req.f1, "f2": req.f2,
+        "qr_text": qr_text,
+        "created_at": now_iso(),
+        "is_walkin": True,
+    }
+    await db.event_recipients.insert_one(rec)
+    rec.pop("_id", None)
+
+    chk = {
+        "event_code": event_code,
+        "recipient_id": recipient_id,
+        "name": name,
+        "email": (req.email or '').strip(),
+        "qr_text": qr_text,
+        "count": max(1, int(req.count or 1)),
+        "at": now_iso(),
+        "is_walkin": True,
+    }
+    await db.event_checkins.insert_one(chk)
+    chk.pop("_id", None)
+
+    return {
+        "recipient": rec,
+        "checkin": chk,
+        "event": {
+            "name": ev.get("name", ""),
+            "year": str(ev.get("year") or ""),
+            "date": ev.get("date", ""),
+            "venue": ev.get("venue", ""),
+            "qr_size": ev.get("qr_size", 320),
+        },
+        "stats": await _stats(event_code),
+    }
 
 
 class LookupRequest(BaseModel):

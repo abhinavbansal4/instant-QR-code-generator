@@ -110,8 +110,15 @@ Endpoints:
 - Dashboard auto-updated 2 → 3 after race ✓
 
 ## Backlog / Next
-- P1: Verify domain in Resend so emails can go to anyone.
-- P1: Server-Sent Events for dashboard (replace polling) — nice-to-have for true real-time.
+- P1: Verify domain in Resend so walk-in & ticket emails work for any address (currently locked to API-key owner).
+- P1: Mark walk-ins visually in scanner log + dashboard feed (e.g., a small "WALK-IN" pill).
+- P1: Server-Sent Events for dashboard (replace polling).
 - P2: Bulk recipient append (vs replace), CSV export from generator after cloud-load.
-- P2: Per-event admin/owner auth so random users can't reset another event.
-- P2: Manual dark-mode toggle on generator, brand presets, multi-language email templates.
+- P2: Per-event admin/owner auth.
+- P2: Manual dark-mode toggle, brand presets, multi-language email templates.
+
+## Update (2026-02 — walk-in registration on scanner)
+- New endpoint **`POST /api/events/{code}/walkin`** atomically creates a recipient + check-in (marked `is_walkin: true`), builds qr_text from event template.
+- Scanner page got **`+ Add walk-in`** button (saffron) opening a modal: Name (required), Email (optional), People count, "Email a QR pass" checkbox.
+- On submit: backend call → success modal renders the QR live (qr-code-styling added to scan.html) → optional email via existing `/api/send-qr-email` (with `event_code` for the ticket).
+- Verified live: walk-in inserted, stats jumped `in 4→5 / total 7→8 / people 4→6` (group of 2), success QR shown, **email delivered** to verified Resend address ✓.

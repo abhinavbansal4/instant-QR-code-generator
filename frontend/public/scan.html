@@ -166,6 +166,7 @@
           <button class="btn btn-ghost btn-sm" id="manualBtn" type="button" style="margin-top:6px" data-testid="manual-scan-btn">Look up</button>
 
           <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" id="walkInBtn" type="button" data-testid="walkin-btn" style="background:linear-gradient(180deg,#fbbf24,#f97316);color:#1a1a1a">＋ Add walk-in</button>
             <button class="btn btn-ghost btn-sm" id="csvBtn" type="button" data-testid="export-csv-btn">Export attendance CSV</button>
             <button class="btn btn-ghost btn-sm" id="resetBtn" type="button" data-testid="reset-btn">Reset all check-ins</button>
             <button class="btn btn-ghost btn-sm" id="disconnectBtn" type="button" data-testid="disconnect-btn">Disconnect</button>
@@ -217,7 +218,64 @@
   </div>
 </div>
 
+<!-- Walk-in modal -->
+<div class="modal" id="walkModal" role="dialog" aria-modal="true">
+  <div class="modal-card" data-testid="walkin-modal" style="max-width:520px">
+    <div class="modal-head">
+      <div class="modal-emoji" style="background:rgba(251,191,36,.18);color:var(--accent-3)">＋</div>
+      <div>
+        <div class="modal-eyebrow" style="color:var(--accent-3)">Walk-in</div>
+        <div class="modal-title">Register &amp; check-in</div>
+        <div class="modal-sub">For attendees who arrived without pre-registration.</div>
+      </div>
+    </div>
+    <div style="display:grid;gap:10px">
+      <div>
+        <label for="wName">Name *</label>
+        <input id="wName" type="text" placeholder="Full name" data-testid="walkin-name-input"/>
+      </div>
+      <div>
+        <label for="wEmail">Email <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="wEmail" type="text" placeholder="someone@example.com" data-testid="walkin-email-input"/>
+      </div>
+      <div>
+        <label>People in this group</label>
+        <div class="counter">
+          <button class="cbtn" id="wMinus" type="button" data-testid="walkin-people-minus">−</button>
+          <input id="wCount" type="number" min="1" value="1" data-testid="walkin-people-count"/>
+          <button class="cbtn" id="wPlus" type="button" data-testid="walkin-people-plus">+</button>
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:500;color:var(--text);text-transform:none;letter-spacing:0;font-size:13px;margin-top:4px;cursor:pointer">
+        <input type="checkbox" id="wEmailPass" checked data-testid="walkin-email-pass" style="width:auto;accent-color:var(--accent)"/>
+        <span>Email a QR pass to this person (if email provided)</span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="wCancel" type="button" data-testid="walkin-cancel">Cancel</button>
+      <button class="btn btn-primary" id="wConfirm" type="button" data-testid="walkin-submit">Check in &amp; (optionally) email</button>
+    </div>
+    <div class="alert" id="wAlert"></div>
+  </div>
+</div>
+
+<!-- Walk-in success modal -->
+<div class="modal" id="walkSuccessModal" role="dialog" aria-modal="true">
+  <div class="modal-card ok" style="max-width:420px;text-align:center">
+    <div class="modal-emoji" style="margin:0 auto 12px">✅</div>
+    <div class="modal-eyebrow">Walk-in checked in</div>
+    <div class="modal-title" id="wsTitle">—</div>
+    <div class="modal-sub" id="wsSub" style="margin:6px 0 14px">—</div>
+    <div id="wsQr" style="display:flex;justify-content:center;margin-bottom:12px"></div>
+    <div id="wsMail" class="hint" style="text-align:center"></div>
+    <div class="modal-actions" style="justify-content:center">
+      <button class="btn btn-primary" id="wsClose" type="button" data-testid="walkin-success-close">Done</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -504,6 +562,107 @@
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   });
   function cellCsv(s){ const v=String(s??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+
+  // -------- Walk-in --------
+  $('walkInBtn').addEventListener('click', () => {
+    if(!state.code){ showAlert($('liveAlert'),'warn','Connect to an event first.'); return; }
+    $('wName').value = ''; $('wEmail').value = ''; $('wCount').value = '1'; $('wEmailPass').checked = true;
+    hideAlert($('wAlert'));
+    $('walkModal').classList.add('show');
+    setTimeout(() => $('wName').focus(), 50);
+  });
+  $('wCancel').addEventListener('click', () => $('walkModal').classList.remove('show'));
+  $('walkModal').addEventListener('click', (e) => { if(e.target.id === 'walkModal') $('walkModal').classList.remove('show'); });
+  $('wMinus').addEventListener('click', () => { $('wCount').value = Math.max(1,(parseInt($('wCount').value,10)||1)-1); });
+  $('wPlus').addEventListener('click', () => { $('wCount').value = Math.max(1,(parseInt($('wCount').value,10)||1)+1); });
+
+  $('wConfirm').addEventListener('click', async () => {
+    const name = $('wName').value.trim();
+    const email = $('wEmail').value.trim();
+    const count = Math.max(1, parseInt($('wCount').value, 10) || 1);
+    const wantEmail = $('wEmailPass').checked && !!email;
+    if(!name){ showAlert($('wAlert'),'err','Name is required.'); return; }
+    hideAlert($('wAlert'));
+    $('wConfirm').disabled = true; $('wConfirm').textContent = 'Saving…';
+    try{
+      const r = await fetch(`/api/events/${state.code}/walkin`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, email, count })
+      });
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      $('walkModal').classList.remove('show');
+      await loadCheckins(); await refreshStats(); await loadRecipients();
+      // Show success modal with QR rendered & optional email
+      await showWalkinSuccess(j, wantEmail);
+    } catch(e){
+      showAlert($('wAlert'),'err',`Walk-in failed: ${e.message}`);
+    } finally {
+      $('wConfirm').disabled = false; $('wConfirm').textContent = 'Check in & (optionally) email';
+    }
+  });
+
+  async function showWalkinSuccess(payload, wantEmail){
+    const r = payload.recipient;
+    const ev = payload.event || {};
+    $('wsTitle').textContent = r.name;
+    $('wsSub').textContent = `Checked in${r.email ? ' · ' + r.email : ''}`;
+    // Render QR client-side
+    const host = $('wsQr');
+    host.innerHTML = '';
+    const size = Math.min(240, ev.qr_size || 240);
+    const qr = new QRCodeStyling({
+      width: size, height: size, type: 'canvas',
+      data: r.qr_text, margin: 4,
+      qrOptions: { errorCorrectionLevel: 'H' },
+      dotsOptions: { type:'square', color:'#111111' },
+      backgroundOptions: { color:'#ffffff' },
+      cornersSquareOptions: { type:'extra-rounded', color:'#111111' },
+      cornersDotOptions: { type:'dot', color:'#c2410c' }
+    });
+    qr.append(host);
+    // Email if requested
+    $('wsMail').textContent = '';
+    if(wantEmail){
+      try{
+        // small wait to ensure canvas drawn
+        await new Promise(res => setTimeout(res, 250));
+        const blob = await qr.getRawData('png');
+        const b64 = await blobToBase64(blob);
+        const res = await fetch(`/api/send-qr-email?event_code=${encodeURIComponent(state.code)}`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            recipient_email: r.email,
+            recipient_name: r.name,
+            event_name: ev.name || '',
+            event_year: ev.year || '',
+            event_date: ev.date || '',
+            event_venue: ev.venue || '',
+            qr_text: r.qr_text,
+            qr_png_base64: b64,
+            extra_note: 'You are already checked in. Save this QR for your records.'
+          })
+        });
+        if(res.ok) $('wsMail').textContent = `Pass emailed to ${r.email}`;
+        else { const j = await res.json().catch(()=>({})); $('wsMail').textContent = `Email failed: ${j.detail || res.status}`; }
+      } catch(e){
+        $('wsMail').textContent = `Email failed: ${e.message}`;
+      }
+    } else if(r.email){
+      $('wsMail').textContent = 'No email sent (unchecked).';
+    }
+    $('walkSuccessModal').classList.add('show');
+  }
+  function blobToBase64(blob){
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onloadend = () => { const d = String(r.result); const i = d.indexOf(','); res(i>=0 ? d.slice(i+1) : d); };
+      r.onerror = () => rej(new Error('Encode failed'));
+      r.readAsDataURL(blob);
+    });
+  }
+  $('wsClose').addEventListener('click', () => $('walkSuccessModal').classList.remove('show'));
+  $('walkSuccessModal').addEventListener('click', (e) => { if(e.target.id === 'walkSuccessModal') $('walkSuccessModal').classList.remove('show'); });
 
   // Auto-connect if URL/localStorage had a code
   if(initialCode) connect(initialCode);
