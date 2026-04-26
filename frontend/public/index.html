@@ -3,16 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>QR Code Generator · Bulk from Excel/CSV</title>
+<title>QR Events · Bulk &amp; Single QR Code Generator</title>
 <style>
   :root{
-    --bg: #fbfaf7;
-    --surface: #ffffff;
+    --bg: #fbfaf6;
+    --surface: rgba(255,255,255,.78);
+    --surface-solid: #ffffff;
     --surface-2: #f4f1ea;
     --border: #e7e2d6;
     --text: #1a1a1a;
     --muted: #6b675e;
-    --accent: #c2410c;        /* warm saffron */
+    --accent: #c2410c;
+    --accent-2: #ea580c;
+    --accent-3: #f59e0b;
     --accent-soft: #fed7aa;
     --accent-ink: #7c2d12;
     --ok: #15803d;
@@ -22,17 +25,20 @@
     --err: #b91c1c;
     --err-soft: #fee2e2;
     --radius: 14px;
-    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px -12px rgba(0,0,0,.08);
+    --shadow: 0 1px 2px rgba(60,40,10,.05), 0 12px 32px -16px rgba(60,40,10,.18);
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --bg: #14130f;
-      --surface: #1c1b17;
+      --bg: #0f0e0a;
+      --surface: rgba(28,27,23,.72);
+      --surface-solid: #1c1b17;
       --surface-2: #232118;
       --border: #2e2b22;
       --text: #f1ede2;
       --muted: #9d9889;
       --accent: #fb923c;
+      --accent-2: #f97316;
+      --accent-3: #fbbf24;
       --accent-soft: #3a230f;
       --accent-ink: #fed7aa;
       --ok: #4ade80;
@@ -41,57 +47,120 @@
       --warn-soft: #2d2410;
       --err: #f87171;
       --err-soft: #2d1414;
-      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.5);
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.6);
     }
   }
 
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
   ::selection{background:var(--accent-soft);color:var(--accent-ink)}
 
-  .wrap{max-width:1080px;margin:0 auto;padding:32px 24px 80px}
-  header.hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:36px}
-  .brand{display:flex;align-items:center;gap:14px}
-  .logo{
-    width:46px;height:46px;border-radius:12px;
-    background:radial-gradient(circle at 30% 30%, var(--accent) 0%, #7c2d12 100%);
-    display:grid;place-items:center;color:#fff;font-weight:700;font-size:18px;letter-spacing:.5px;
-    box-shadow:var(--shadow)
+  /* ============ Animated gradient mesh background ============ */
+  .bg-mesh{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+  .bg-mesh::before{
+    content:"";position:absolute;inset:-2px;
+    background:
+      radial-gradient(800px 600px at 12% 8%,  rgba(245,158,11,.28), transparent 60%),
+      radial-gradient(700px 600px at 88% 12%, rgba(234,88,12,.22),  transparent 65%),
+      radial-gradient(900px 700px at 65% 95%, rgba(194,65,12,.18),  transparent 60%),
+      radial-gradient(700px 500px at 5% 95%,  rgba(251,191,36,.18), transparent 60%);
+    animation:meshShift 22s ease-in-out infinite alternate
   }
-  h1{font-size:clamp(26px,3vw,34px);margin:0;letter-spacing:-.02em;font-weight:650}
-  .tag{color:var(--muted);font-size:14px;margin-top:4px}
+  .bg-mesh::after{
+    content:"";position:absolute;inset:0;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(0,0,0,.05) 1px, transparent 1.5px);
+    background-size:18px 18px;mix-blend-mode:multiply;opacity:.4
+  }
+  @media (prefers-color-scheme: dark){
+    .bg-mesh::after{background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 1.5px);mix-blend-mode:screen;opacity:.5}
+  }
+  @keyframes meshShift{
+    0%   { transform: translate3d(0,0,0)   scale(1)    }
+    50%  { transform: translate3d(-20px,10px,0) scale(1.04) }
+    100% { transform: translate3d(15px,-15px,0) scale(1.02) }
+  }
 
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 22px 80px;position:relative;z-index:1}
+
+  /* ============ Hero ============ */
+  header.hero{
+    margin-bottom:30px;padding:30px 28px;border-radius:20px;
+    background:var(--surface);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border);box-shadow:var(--shadow);
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap
+  }
+  .logo-mark{
+    width:54px;height:54px;border-radius:14px;flex-shrink:0;
+    background:conic-gradient(from 220deg at 50% 50%, #f59e0b, #ea580c, #c2410c, #f59e0b);
+    display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;letter-spacing:.5px;
+    box-shadow:0 6px 18px -6px rgba(194,65,12,.5)
+  }
+  .hero-text{flex:1;min-width:240px}
+  h1{font-size:clamp(26px,3vw,32px);margin:0;letter-spacing:-.02em;font-weight:700;line-height:1.1}
+  h1 .grad{background:linear-gradient(90deg,#c2410c,#ea580c 50%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--muted);font-size:14px;margin-top:6px;line-height:1.5;max-width:62ch}
+
+  /* ============ Cards ============ */
   .card{
-    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-    padding:24px;box-shadow:var(--shadow);margin-bottom:20px
+    background:var(--surface);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid var(--border);border-radius:var(--radius);
+    padding:22px;box-shadow:var(--shadow);margin-bottom:18px
   }
-  .card h2{margin:0 0 4px;font-size:18px;font-weight:600;letter-spacing:-.01em}
-  .card .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+  .card h2{margin:0 0 4px;font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .card .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
 
-  .grid{display:grid;gap:14px}
+  .grid{display:grid;gap:12px}
   .grid.cols-2{grid-template-columns:1fr 1fr}
   .grid.cols-3{grid-template-columns:repeat(3, 1fr)}
-  @media (max-width:680px){.grid.cols-2,.grid.cols-3{grid-template-columns:1fr}}
+  .grid.cols-4{grid-template-columns:repeat(4, 1fr)}
+  @media (max-width:760px){.grid.cols-2,.grid.cols-3,.grid.cols-4{grid-template-columns:1fr}}
 
-  label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-  input[type=text], input[type=number]{
-    width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:10px;
-    background:var(--surface);color:var(--text);font:inherit;font-size:14px;
+  label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+  input[type=text], input[type=number], input[type=email], textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+    background:var(--surface-solid);color:var(--text);font:inherit;font-size:14px;
     transition:border-color .15s, box-shadow .15s
   }
-  input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  textarea{resize:vertical;min-height:80px;font-family:inherit}
+  input:focus, textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
   code{background:var(--surface-2);padding:2px 6px;border-radius:5px;font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace}
 
-  .preview-qr{
-    display:flex;align-items:center;gap:14px;padding:12px;
-    background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;margin-top:8px
+  /* ============ Tabs ============ */
+  .tabs{
+    display:inline-flex;gap:4px;padding:4px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:12px;margin-bottom:14px
   }
-  .preview-qr img, .preview-qr canvas{width:96px;height:96px;border-radius:8px;background:#fff;padding:4px;border:1px solid var(--border)}
-  .preview-qr .pv-text{font-size:13px;color:var(--muted)}
-  .preview-qr .pv-text b{color:var(--text);font-weight:600}
+  .tab{
+    appearance:none;border:none;background:transparent;color:var(--muted);
+    padding:8px 16px;border-radius:9px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;transition:all .15s
+  }
+  .tab:hover{color:var(--text)}
+  .tab.active{background:var(--surface-solid);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .tab .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
 
-  .logo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px}
+  /* ============ Buttons ============ */
+  .btn{
+    appearance:none;border:1px solid transparent;border-radius:10px;cursor:pointer;
+    padding:10px 16px;font:inherit;font-size:13.5px;font-weight:600;
+    transition:transform .05s, background .15s, border-color .15s, color .15s, box-shadow .15s;
+    display:inline-flex;align-items:center;gap:7px;text-decoration:none;line-height:1
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:linear-gradient(180deg,#ea580c,#c2410c);color:#fff;box-shadow:0 4px 12px -4px rgba(194,65,12,.5)}
+  .btn-primary:hover{filter:brightness(1.06)}
+  .btn-primary:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;box-shadow:none;filter:none}
+  .btn-ghost{background:var(--surface-solid);color:var(--text);border-color:var(--border)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-ghost:disabled{opacity:.5;cursor:not-allowed;border-color:var(--border);color:var(--muted)}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:8px;gap:5px}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;align-items:center}
+
+  /* ============ Logo picker ============ */
+  .logo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px}
   .logo-pick{
     display:flex;align-items:center;gap:14px;cursor:pointer;
     padding:10px 12px;border:1px dashed var(--border);border-radius:10px;
@@ -108,72 +177,67 @@
   .logo-meta{font-size:13px}
   .logo-meta b{font-weight:600}
 
+  /* ============ Live preview ============ */
+  .preview-qr{
+    display:flex;align-items:center;gap:14px;padding:12px;
+    background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;margin-top:8px
+  }
+  .preview-qr canvas{width:104px;height:104px;border-radius:8px;background:#fff;padding:4px;border:1px solid var(--border)}
+  .preview-qr .pv-text{font-size:13px;color:var(--muted)}
+  .preview-qr .pv-text b{color:var(--text);font-weight:600}
+
+  /* ============ Drop zone ============ */
   .drop{
-    border:2px dashed var(--border);border-radius:14px;padding:30px;text-align:center;
-    background:var(--surface-2);transition:border-color .2s, background .2s;cursor:pointer
+    border:2px dashed var(--border);border-radius:14px;padding:28px;text-align:center;
+    background:var(--surface-2);transition:border-color .2s, background .2s;cursor:pointer;display:block
   }
   .drop.over{border-color:var(--accent);background:var(--accent-soft)}
-  .drop .big{font-size:15px;font-weight:600;margin-bottom:6px}
-  .drop .small{font-size:13px;color:var(--muted)}
+  .drop .big{font-size:14.5px;font-weight:600;margin-bottom:6px}
+  .drop .small{font-size:12.5px;color:var(--muted)}
   .drop input{display:none}
 
-  .btn{
-    appearance:none;border:1px solid transparent;border-radius:10px;cursor:pointer;
-    padding:11px 18px;font:inherit;font-size:14px;font-weight:600;
-    transition:transform .05s, background .15s, border-color .15s, color .15s;
-    display:inline-flex;align-items:center;gap:8px
-  }
-  .btn:active{transform:translateY(1px)}
-  .btn-primary{background:var(--accent);color:#fff}
-  .btn-primary:hover{background:#9a3412}
-  .btn-primary:disabled{background:var(--border);color:var(--muted);cursor:not-allowed}
-  .btn-ghost{background:var(--surface);color:var(--text);border-color:var(--border)}
-  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
-  .btn-sm{padding:7px 11px;font-size:12.5px;border-radius:8px}
-
-  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;align-items:center}
-
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  /* ============ Stats ============ */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
   @media (max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
   .stat{
-    background:var(--surface-2);border:1px solid var(--border);border-radius:12px;
-    padding:14px 16px
+    background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;
+    padding:12px 14px
   }
-  .stat .num{font-size:26px;font-weight:700;letter-spacing:-.02em}
-  .stat .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
+  .stat .num{font-size:22px;font-weight:700;letter-spacing:-.02em}
+  .stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
 
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}
-  th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--surface-2)}
+  /* ============ Table ============ */
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--surface-2)}
   tbody tr:hover{background:var(--surface-2)}
-  .table-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:340px;overflow-y:auto}
-  .empty{padding:30px;text-align:center;color:var(--muted);font-size:14px}
+  .table-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:300px;overflow-y:auto;background:var(--surface-solid)}
+  .empty{padding:28px;text-align:center;color:var(--muted);font-size:14px}
 
-  .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-top:8px}
+  /* ============ QR card grid ============ */
+  .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:8px}
   .qr-card{
-    background:var(--surface);border:1px solid var(--border);border-radius:12px;
-    padding:14px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;
+    background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;
+    padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;
     transition:border-color .15s, transform .15s
   }
   .qr-card:hover{border-color:var(--accent);transform:translateY(-1px)}
   .qr-card .qr-img{
-    width:128px;height:128px;background:#fff;border:1px solid var(--border);border-radius:8px;
+    width:140px;height:140px;background:#fff;border:1px solid var(--border);border-radius:8px;
     display:grid;place-items:center;overflow:hidden
   }
   .qr-card .qr-img img{width:100%;height:100%;object-fit:contain}
-  .qr-card .qr-name{font-weight:600;font-size:13.5px;line-height:1.3;word-break:break-word}
-  .qr-card .qr-mail{font-size:11.5px;color:var(--muted);word-break:break-all}
-  .qr-card .row{display:flex;gap:6px;width:100%}
-  .qr-card .row .btn{flex:1;justify-content:center}
+  .qr-card .qr-name{font-weight:600;font-size:13.5px;line-height:1.3;text-align:center;word-break:break-word}
+  .qr-card .qr-mail{font-size:11.5px;color:var(--muted);word-break:break-all;text-align:center}
+  .qr-card .row{display:flex;gap:6px;width:100%;flex-wrap:wrap}
+  .qr-card .row .btn{flex:1;justify-content:center;padding:6px 8px;font-size:11.5px}
 
+  /* ============ Progress + alerts ============ */
   .progress{height:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-top:14px;display:none}
   .progress.show{display:block}
-  .progress > span{display:block;height:100%;width:0%;background:var(--accent);transition:width .2s}
+  .progress > span{display:block;height:100%;width:0%;background:linear-gradient(90deg,#f59e0b,#c2410c);transition:width .2s}
 
-  .alert{
-    border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5;
-    border:1px solid transparent;margin-top:14px;display:none
-  }
+  .alert{border-radius:10px;padding:11px 14px;font-size:13px;line-height:1.5;border:1px solid transparent;margin-top:14px;display:none}
   .alert.show{display:block}
   .alert.ok{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
   .alert.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
@@ -181,47 +245,106 @@
 
   footer{margin-top:30px;text-align:center;color:var(--muted);font-size:12px}
   footer a{color:var(--accent);text-decoration:none}
-  footer a:hover{text-decoration:underline}
+
+  /* ============ Modes ============ */
+  [data-mode-content]{display:none}
+  [data-mode-content].active{display:block}
+
+  /* ============ Print styles ============ */
+  .print-sheet{display:none}
+  .print-sheet h3{font-size:16px;margin:0 0 8px}
+  .print-card{
+    page-break-inside:avoid;break-inside:avoid;
+    border:1px solid #ddd;border-radius:10px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;color:#000
+  }
+  .print-card img{width:240px;height:240px}
+  .print-card .pn{font-weight:700;font-size:14px;text-align:center}
+  .print-card .pe{font-size:12px;color:#555;text-align:center}
+  .print-card .pt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;color:#666;text-align:center;word-break:break-all}
+  .print-card .pev{font-size:11px;color:#888;letter-spacing:.05em;text-transform:uppercase}
+
+  @media print{
+    @page{margin:14mm}
+    body{background:#fff !important;color:#000}
+    .bg-mesh, header.hero, .card, footer, .no-print{display:none !important}
+    .print-sheet{display:block !important}
+    .print-grid-1{display:grid;grid-template-columns:1fr;gap:0}
+    .print-grid-1 .print-card{height:calc(100vh - 28mm);justify-content:center;border:none;page-break-after:always}
+    .print-grid-1 .print-card img{width:340px;height:340px}
+    .print-grid-1 .print-card .pn{font-size:22px}
+    .print-grid-8{display:grid;grid-template-columns:1fr 1fr;gap:6mm}
+    .print-grid-8 .print-card img{width:80mm;height:80mm}
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<div class="bg-mesh" aria-hidden="true"></div>
+
+<div class="wrap no-print">
 
   <header class="hero">
-    <div class="brand">
-      <div class="logo">QR</div>
-      <div>
-        <h1>Bulk QR Code Generator</h1>
-        <div class="tag">Upload Excel or CSV → generate QR codes for every teacher → download as ZIP</div>
+    <div class="logo-mark">QR</div>
+    <div class="hero-text">
+      <h1>Generate <span class="grad">event QR codes</span> — bulk or single</h1>
+      <div class="tag">
+        Upload an Excel/CSV list or generate one at a time. Embed your logo, download a ZIP,
+        print as badges, or email each pass directly to the recipient. All for any event, any year.
       </div>
     </div>
   </header>
 
-  <!-- ============== SETUP ============== -->
+  <!-- ============ Event setup ============ -->
   <section class="card">
     <h2>Event setup</h2>
-    <div class="sub">Configure the event details and the QR text template.</div>
+    <div class="sub">These details are reused in QR text, file names, and email content.</div>
 
     <div class="grid cols-3">
       <div>
         <label for="evName">Event name</label>
-        <input id="evName" type="text" value="Guru Vandana" placeholder="e.g. Guru Vandana" data-testid="event-name-input"/>
+        <input id="evName" type="text" value="My Event" placeholder="e.g. Annual Conference" data-testid="event-name-input"/>
       </div>
       <div>
         <label for="evYear">Year</label>
-        <input id="evYear" type="number" min="1900" max="2999" value="2025" data-testid="event-year-input"/>
+        <input id="evYear" type="number" min="1900" max="2999" value="2026" data-testid="event-year-input"/>
       </div>
       <div>
         <label for="qrSize">QR size (px)</label>
-        <input id="qrSize" type="number" min="64" max="1000" step="32" value="256" data-testid="qr-size-input"/>
+        <input id="qrSize" type="number" min="64" max="1000" step="32" value="320" data-testid="qr-size-input"/>
       </div>
     </div>
 
-    <div style="margin-top:14px">
+    <div class="grid cols-3" style="margin-top:12px">
+      <div>
+        <label for="evDate">Date <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="evDate" type="text" placeholder="e.g. 14 Mar 2026" data-testid="event-date-input"/>
+      </div>
+      <div>
+        <label for="evVenue">Venue <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="evVenue" type="text" placeholder="e.g. City Hall, NYC" data-testid="event-venue-input"/>
+      </div>
+      <div>
+        <label for="orgEmail">Organizer email <span style="text-transform:none;color:var(--muted);font-weight:400">(for ZIP email)</span></label>
+        <input id="orgEmail" type="email" placeholder="organizer@example.com" data-testid="organizer-email-input"/>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
       <label for="qrTpl">QR text template</label>
-      <input id="qrTpl" type="text" value="HSS {event_name} {year} - {teacher_name}" data-testid="qr-template-input"/>
+      <input id="qrTpl" type="text" value="{event_name} {year} - {name}" data-testid="qr-template-input"/>
       <div class="hint">
-        Placeholders: <code>{event_name}</code>, <code>{year}</code>, <code>{teacher_name}</code>, <code>{email}</code>
+        Placeholders: <code>{event_name}</code>, <code>{year}</code>, <code>{name}</code>, <code>{email}</code>, <code>{f1}</code>, <code>{f2}</code>
+      </div>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:12px">
+      <div>
+        <label for="f1Label">Custom field 1 label <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="f1Label" type="text" placeholder="e.g. Department" data-testid="f1-label-input"/>
+      </div>
+      <div>
+        <label for="f2Label">Custom field 2 label <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="f2Label" type="text" placeholder="e.g. Role" data-testid="f2-label-input"/>
       </div>
     </div>
 
@@ -236,14 +359,14 @@
             <div class="hint" style="margin-top:2px">PNG · JPG · SVG · WebP — auto-padded with rounded white plate</div>
           </div>
         </label>
-        <button id="logoClear" class="btn btn-ghost btn-sm" type="button" data-testid="logo-clear-btn" style="display:none">Remove logo</button>
+        <button id="logoClear" class="btn btn-ghost btn-sm" type="button" data-testid="logo-clear-btn" style="display:none">Remove</button>
       </div>
     </div>
 
     <div style="margin-top:14px">
       <label>Live preview</label>
       <div class="preview-qr" data-testid="qr-preview">
-        <canvas id="pvCanvas" width="256" height="256" aria-label="preview"></canvas>
+        <canvas id="pvCanvas" width="320" height="320" aria-label="preview"></canvas>
         <div class="pv-text">
           Preview encodes:&nbsp;<b id="pvText">—</b>
         </div>
@@ -251,32 +374,72 @@
     </div>
   </section>
 
-  <!-- ============== UPLOAD ============== -->
+  <!-- ============ Mode tabs ============ -->
   <section class="card">
-    <h2>1. Upload teacher list</h2>
-    <div class="sub">Excel (.xlsx, .xls) or CSV. Required column: <code>name</code>. Optional: <code>email</code>.</div>
-
-    <label class="drop" id="drop" data-testid="dropzone">
-      <input id="fileIn" type="file" accept=".xlsx,.xls,.csv" data-testid="file-input"/>
-      <div class="big" id="dropTitle">Drop file here or click to browse</div>
-      <div class="small">Accepts .xlsx · .xls · .csv</div>
-    </label>
-
-    <div class="actions">
-      <button class="btn btn-ghost btn-sm" id="loadSample" type="button" data-testid="load-sample-btn">Load sample data</button>
-      <button class="btn btn-ghost btn-sm" id="clearList" type="button" data-testid="clear-list-btn">Clear list</button>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="bulk" type="button" data-testid="tab-bulk"><span class="dot"></span>Bulk upload</button>
+      <button class="tab" data-tab="single" type="button" data-testid="tab-single"><span class="dot"></span>Single QR</button>
     </div>
 
-    <div class="alert" id="parseAlert"></div>
+    <!-- Bulk mode -->
+    <div data-mode-content="bulk" class="active">
+      <h2>Upload a list</h2>
+      <div class="sub">Excel (.xlsx, .xls) or CSV. Required column: <code>name</code>. Optional: <code>email</code>, custom fields by their label.</div>
+
+      <label class="drop" id="drop" data-testid="dropzone">
+        <input id="fileIn" type="file" accept=".xlsx,.xls,.csv" data-testid="file-input"/>
+        <div class="big" id="dropTitle">Drop file here or click to browse</div>
+        <div class="small">Accepts .xlsx · .xls · .csv</div>
+      </label>
+
+      <div class="actions">
+        <button class="btn btn-ghost btn-sm" id="loadSample" type="button" data-testid="load-sample-btn">Load sample data</button>
+        <button class="btn btn-ghost btn-sm" id="clearList" type="button" data-testid="clear-list-btn">Clear list</button>
+      </div>
+
+      <div class="alert" id="parseAlert"></div>
+    </div>
+
+    <!-- Single mode -->
+    <div data-mode-content="single">
+      <h2>Generate one QR</h2>
+      <div class="sub">Quickly create a single QR for one recipient.</div>
+
+      <div class="grid cols-2">
+        <div>
+          <label for="sName">Name *</label>
+          <input id="sName" type="text" placeholder="Full name" data-testid="single-name-input"/>
+        </div>
+        <div>
+          <label for="sEmail">Email <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+          <input id="sEmail" type="email" placeholder="recipient@example.com" data-testid="single-email-input"/>
+        </div>
+      </div>
+      <div class="grid cols-2" style="margin-top:12px">
+        <div>
+          <label for="sF1"><span id="sF1Label">Field 1</span></label>
+          <input id="sF1" type="text" data-testid="single-f1-input"/>
+        </div>
+        <div>
+          <label for="sF2"><span id="sF2Label">Field 2</span></label>
+          <input id="sF2" type="text" data-testid="single-f2-input"/>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="singleAddBtn" type="button" data-testid="single-add-btn">Generate QR</button>
+        <span class="hint" id="singleStatus"></span>
+      </div>
+    </div>
   </section>
 
-  <!-- ============== TEACHERS ============== -->
-  <section class="card">
-    <h2>2. Teachers loaded</h2>
+  <!-- ============ Recipients table (bulk only) ============ -->
+  <section class="card" id="recipientsCard" style="display:none">
+    <h2>Loaded recipients</h2>
     <div class="sub">Review the parsed list before generating QR codes.</div>
 
     <div class="stats">
-      <div class="stat"><div class="num" id="stTotal" data-testid="stat-total">0</div><div class="lbl">Total teachers</div></div>
+      <div class="stat"><div class="num" id="stTotal" data-testid="stat-total">0</div><div class="lbl">Total recipients</div></div>
       <div class="stat"><div class="num" id="stWithEmail" data-testid="stat-with-email">0</div><div class="lbl">With email</div></div>
       <div class="stat"><div class="num" id="stGenerated" data-testid="stat-generated">0</div><div class="lbl">QRs generated</div></div>
       <div class="stat"><div class="num" id="stEvent" data-testid="stat-event">—</div><div class="lbl">Event</div></div>
@@ -285,23 +448,26 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th style="width:48px">#</th><th>Name</th><th>Email</th><th>QR text</th></tr>
+          <tr><th style="width:40px">#</th><th>Name</th><th>Email</th><th>QR text</th></tr>
         </thead>
-        <tbody id="tBody" data-testid="teachers-tbody">
-          <tr><td colspan="4" class="empty">No teachers loaded yet.</td></tr>
+        <tbody id="tBody" data-testid="recipients-tbody">
+          <tr><td colspan="4" class="empty">No recipients loaded yet.</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <!-- ============== GENERATE ============== -->
-  <section class="card">
-    <h2>3. Generate &amp; download</h2>
+  <!-- ============ Generate + actions ============ -->
+  <section class="card" id="generateCard">
+    <h2>Generate &amp; deliver</h2>
     <div class="sub">QR codes are rendered locally with your logo embedded — no upload, no server.</div>
 
     <div class="actions">
       <button class="btn btn-primary" id="genBtn" type="button" disabled data-testid="generate-btn">Generate QR codes</button>
       <button class="btn btn-ghost" id="zipBtn" type="button" disabled data-testid="download-zip-btn">Download ZIP</button>
+      <button class="btn btn-ghost" id="emailZipBtn" type="button" disabled data-testid="email-zip-btn">Email ZIP to organizer</button>
+      <button class="btn btn-ghost" id="printAllBtn" type="button" disabled data-testid="print-all-btn">Print all (badges)</button>
+      <button class="btn btn-ghost" id="printOneBtn" type="button" disabled data-testid="print-one-btn">Print 1 per page</button>
       <span id="genStatus" class="hint" style="margin-left:6px"></span>
     </div>
 
@@ -312,9 +478,12 @@
   </section>
 
   <footer>
-    Pure browser app · QR via qr-code-styling · Excel via SheetJS · ZIP via JSZip
+    QR Events · client-side QR via qr-code-styling · Excel via SheetJS · ZIP via JSZip · Email via Resend
   </footer>
 </div>
+
+<!-- Print sheet (hidden on screen, visible on print) -->
+<div class="print-sheet" id="printSheet" aria-hidden="true"></div>
 
 <!-- Libraries (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -323,199 +492,159 @@
 
 <script>
 (() => {
-  // ---------- State ----------
+  // -------- State --------
   const state = {
-    teachers: [],     // [{name, email, qrText, blob, blobUrl}]
+    recipients: [],   // {id, name, email, f1, f2, qrText, blob, blobUrl}
     generated: 0,
-    logoDataUrl: null,    // user-uploaded original
-    logoPlateUrl: null    // logo with rounded white plate, ready for QR
+    logoDataUrl: null,
+    logoPlateUrl: null
   };
 
-  // ---------- Helpers ----------
+  const API_BASE = ''; // same origin via /api ingress
   const $ = (id) => document.getElementById(id);
 
+  // -------- Helpers --------
+  function uid(){ return 'r' + Math.random().toString(36).slice(2,10); }
+
   function sanitizeFilename(name){
-    return String(name)
-      .trim()
+    return String(name).trim()
       .replace(/[\\/:*?"<>|]+/g, '')
       .replace(/\s+/g, '_')
-      .slice(0, 80) || 'Teacher';
+      .slice(0, 80) || 'recipient';
   }
 
-  function buildQrText(teacher){
-    const tpl = $('qrTpl').value || 'HSS {event_name} {year} - {teacher_name}';
+  function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  function buildQrText(r){
+    const tpl = $('qrTpl').value || '{event_name} {year} - {name}';
     return tpl
       .replaceAll('{event_name}', $('evName').value.trim())
       .replaceAll('{year}', String($('evYear').value).trim())
-      .replaceAll('{teacher_name}', teacher.name || '')
-      .replaceAll('{email}', teacher.email || '');
+      .replaceAll('{name}', r.name || '')
+      .replaceAll('{email}', r.email || '')
+      .replaceAll('{f1}', r.f1 || '')
+      .replaceAll('{f2}', r.f2 || '');
   }
 
   function qrSize(){
-    return Math.max(64, Math.min(1000, parseInt($('qrSize').value || '256', 10)));
+    return Math.max(64, Math.min(1000, parseInt($('qrSize').value || '320', 10)));
   }
 
-  function showAlert(el, kind, msg){
-    el.className = `alert show ${kind}`;
-    el.textContent = msg;
-  }
+  function showAlert(el, kind, msg){ el.className = `alert show ${kind}`; el.textContent = msg; }
   function hideAlert(el){ el.className = 'alert'; el.textContent = ''; }
 
-  // ---------- QR generation (client-side with logo) ----------
+  // -------- QR generation --------
   function makeQRStyling(text, opts={}){
     const size = qrSize();
     return new QRCodeStyling({
-      width: size,
-      height: size,
-      type: 'canvas',
-      data: text,
-      margin: 4,
+      width: size, height: size, type: 'canvas',
+      data: text, margin: 4,
       qrOptions: { errorCorrectionLevel: 'H' },
       image: state.logoPlateUrl || undefined,
-      imageOptions: {
-        crossOrigin: 'anonymous',
-        margin: 2,
-        imageSize: 0.18,
-        hideBackgroundDots: true
-      },
-      dotsOptions: { type: 'square', color: '#111111' },
-      backgroundOptions: { color: '#ffffff' },
-      cornersSquareOptions: { type: 'extra-rounded', color: '#111111' },
-      cornersDotOptions: { type: 'dot', color: '#c2410c' },
+      imageOptions: { crossOrigin:'anonymous', margin:2, imageSize:0.18, hideBackgroundDots:true },
+      dotsOptions: { type:'square', color:'#111111' },
+      backgroundOptions: { color:'#ffffff' },
+      cornersSquareOptions: { type:'extra-rounded', color:'#111111' },
+      cornersDotOptions: { type:'dot', color:'#c2410c' },
       ...opts
     });
   }
+  async function qrToBlob(text){ return await makeQRStyling(text).getRawData('png'); }
 
-  async function qrToBlob(text){
-    const qr = makeQRStyling(text);
-    const blob = await qr.getRawData('png');
-    return blob; // browser returns Blob
-  }
-
-  async function qrToCanvas(text, container){
-    container.innerHTML = '';
-    const qr = makeQRStyling(text);
-    qr.append(container);
-  }
-
-  // ---------- Logo handling ----------
-  function roundRect(ctx, x, y, w, h, r){
-    ctx.beginPath();
-    ctx.moveTo(x+r, y);
-    ctx.arcTo(x+w, y, x+w, y+h, r);
-    ctx.arcTo(x+w, y+h, x, y+h, r);
-    ctx.arcTo(x, y+h, x, y, r);
-    ctx.arcTo(x, y, x+w, y, r);
-    ctx.closePath();
-  }
-
-  function logoToPlate(srcDataUrl){
+  // -------- Logo --------
+  function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+  function logoToPlate(srcUrl){
     return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
+      const img = new Image(); img.crossOrigin = 'anonymous';
       img.onload = () => {
-        const size = 512;
-        const padding = 56;
-        const inner = size - padding * 2;
-        const cv = document.createElement('canvas');
-        cv.width = size; cv.height = size;
-        const ctx = cv.getContext('2d');
-        // rounded white plate
-        ctx.fillStyle = '#ffffff';
-        roundRect(ctx, 0, 0, size, size, 88);
-        ctx.fill();
-        // fit logo while preserving aspect
-        const ratio = Math.min(inner / img.width, inner / img.height);
-        const w = img.width * ratio, h = img.height * ratio;
-        ctx.drawImage(img, (size - w)/2, (size - h)/2, w, h);
+        const size=512, padding=56, inner=size-padding*2;
+        const cv=document.createElement('canvas'); cv.width=cv.height=size;
+        const ctx=cv.getContext('2d');
+        ctx.fillStyle='#ffffff'; roundRect(ctx,0,0,size,size,88); ctx.fill();
+        const ratio=Math.min(inner/img.width, inner/img.height);
+        const w=img.width*ratio, h=img.height*ratio;
+        ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);
         resolve(cv.toDataURL('image/png'));
       };
       img.onerror = () => reject(new Error('Could not read logo image'));
-      img.src = srcDataUrl;
+      img.src = srcUrl;
     });
   }
-
-  function readFileAsDataUrl(file){
-    return new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result);
-      r.onerror = () => reject(new Error('Could not read file'));
-      r.readAsDataURL(file);
-    });
+  function readFileAsDataUrl(f){
+    return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('Could not read file'));r.readAsDataURL(f);});
   }
 
   $('logoIn').addEventListener('change', async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
+    const f = e.target.files[0]; if(!f) return;
     try {
       const raw = await readFileAsDataUrl(f);
-      const plate = await logoToPlate(raw);
       state.logoDataUrl = raw;
-      state.logoPlateUrl = plate;
-      $('logoThumb').innerHTML = `<img src="${plate}" alt="logo"/>`;
+      state.logoPlateUrl = await logoToPlate(raw);
+      $('logoThumb').innerHTML = `<img src="${state.logoPlateUrl}" alt="logo"/>`;
       $('logoName').textContent = f.name;
       $('logoClear').style.display = 'inline-flex';
-      // invalidate any previously generated QRs (logo changed)
-      revokeAllBlobs();
-      state.teachers.forEach(t => { t.blob = null; t.blobUrl = ''; });
-      state.generated = 0;
-      renderTable(); renderGrid();
-      $('zipBtn').disabled = true;
+      invalidateQrs();
       refreshPreview();
-    } catch (err) {
-      alert(err.message);
-    }
+    } catch(err){ alert(err.message); }
   });
-
   $('logoClear').addEventListener('click', () => {
-    state.logoDataUrl = null;
-    state.logoPlateUrl = null;
+    state.logoDataUrl = null; state.logoPlateUrl = null;
     $('logoIn').value = '';
     $('logoThumb').innerHTML = `<div class="ph">Click to<br/>upload</div>`;
     $('logoName').textContent = 'No logo selected';
     $('logoClear').style.display = 'none';
-    revokeAllBlobs();
-    state.teachers.forEach(t => { t.blob = null; t.blobUrl = ''; });
-    state.generated = 0;
-    renderTable(); renderGrid();
-    $('zipBtn').disabled = true;
-    refreshPreview();
+    invalidateQrs(); refreshPreview();
   });
 
+  function invalidateQrs(){
+    revokeAllBlobs();
+    state.recipients.forEach(r => { r.blob = null; r.blobUrl = ''; });
+    state.generated = 0;
+    renderTable(); renderGrid(); updateBtnStates();
+  }
   function revokeAllBlobs(){
-    for (const t of state.teachers) {
-      if (t.blobUrl) { URL.revokeObjectURL(t.blobUrl); t.blobUrl = ''; }
-    }
+    for(const r of state.recipients){ if(r.blobUrl){ URL.revokeObjectURL(r.blobUrl); r.blobUrl=''; } }
   }
 
-  // ---------- Preview (live) ----------
+  // -------- Preview --------
   let pvDebounce;
   function refreshPreview(){
-    const sample = state.teachers[0] || { name:'Anita Sharma', email:'anita@example.com' };
+    const sample = state.recipients[0] || { name:'Alex Doe', email:'alex@example.com', f1:'', f2:'' };
     const text = buildQrText(sample);
     $('pvText').textContent = text;
     $('stEvent').textContent = `${$('evName').value.trim() || '—'} ${$('evYear').value || ''}`.trim();
-    if(state.teachers.length){
-      state.teachers.forEach(t => t.qrText = buildQrText(t));
+    if(state.recipients.length){
+      state.recipients.forEach(r => r.qrText = buildQrText(r));
       renderTable();
     }
     clearTimeout(pvDebounce);
     pvDebounce = setTimeout(() => {
-      const host = document.createElement('div');
-      const qr = makeQRStyling(text, { width: 192, height: 192 });
-      qr.append(host);
-      // qr-code-styling appends a canvas inside host
       const target = document.querySelector('.preview-qr');
       const old = target.querySelector('canvas, .qr-preview-host');
+      const host = document.createElement('div');
       host.className = 'qr-preview-host';
-      if (old) target.replaceChild(host, old); else target.insertBefore(host, target.firstChild);
+      makeQRStyling(text, { width:208, height:208 }).append(host);
+      if(old) target.replaceChild(host, old); else target.insertBefore(host, target.firstChild);
     }, 120);
+
+    // also update single-form custom field labels
+    $('sF1Label').textContent = $('f1Label').value.trim() || 'Field 1';
+    $('sF2Label').textContent = $('f2Label').value.trim() || 'Field 2';
   }
-  ['evName','evYear','qrTpl','qrSize'].forEach(id => $(id).addEventListener('input', refreshPreview));
+  ['evName','evYear','qrTpl','qrSize','f1Label','f2Label'].forEach(id => $(id).addEventListener('input', refreshPreview));
 
-  // ---------- File parsing ----------
+  // -------- Tabs --------
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    const tab = t.dataset.tab;
+    document.querySelectorAll('[data-mode-content]').forEach(c => {
+      c.classList.toggle('active', c.dataset.modeContent === tab);
+    });
+  }));
+
+  // -------- File parsing (bulk) --------
   const drop = $('drop'), fileIn = $('fileIn');
-
   drop.addEventListener('click', () => fileIn.click());
   drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('over'));
@@ -535,194 +664,358 @@
         const wb = XLSX.read(data, { type:'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
-        loadTeachers(rows);
-      } catch(err){
-        showAlert($('parseAlert'), 'err', `Could not parse file: ${err.message}`);
-      }
+        loadRecipients(rows);
+      } catch(err){ showAlert($('parseAlert'), 'err', `Could not parse file: ${err.message}`); }
     };
     reader.readAsArrayBuffer(file);
   }
 
-  function loadTeachers(rows){
-    if(!Array.isArray(rows) || rows.length === 0){
-      showAlert($('parseAlert'), 'err', 'No rows found in the file.');
-      return;
-    }
+  function loadRecipients(rows){
+    if(!Array.isArray(rows) || rows.length === 0){ showAlert($('parseAlert'),'err','No rows found.'); return; }
     revokeAllBlobs();
-    // case-insensitive column lookup
-    const teachers = [];
-    let skipped = 0;
+    const f1Lbl = ($('f1Label').value || '').toLowerCase().trim();
+    const f2Lbl = ($('f2Label').value || '').toLowerCase().trim();
+    const list = []; let skipped = 0;
     for(const row of rows){
       const lower = {};
       for(const k of Object.keys(row)) lower[k.toLowerCase().trim()] = row[k];
-      const name = String(lower['name'] ?? lower['teacher'] ?? lower['teacher_name'] ?? '').trim();
+      const name = String(lower['name'] ?? lower['recipient'] ?? lower['teacher'] ?? lower['teacher_name'] ?? lower['full name'] ?? '').trim();
       const email = String(lower['email'] ?? lower['mail'] ?? '').trim();
+      const f1 = f1Lbl ? String(lower[f1Lbl] ?? '').trim() : '';
+      const f2 = f2Lbl ? String(lower[f2Lbl] ?? '').trim() : '';
       if(!name){ skipped++; continue; }
-      teachers.push({ name, email, qrText:'', blob:null, blobUrl:'' });
+      list.push({ id: uid(), name, email, f1, f2, qrText:'', blob:null, blobUrl:'' });
     }
-    if(teachers.length === 0){
-      showAlert($('parseAlert'), 'err', 'No valid rows found. Make sure your file has a "name" column.');
-      return;
-    }
-    state.teachers = teachers;
+    if(list.length === 0){ showAlert($('parseAlert'),'err','No valid rows. Make sure your file has a "name" column.'); return; }
+    state.recipients = list;
     state.generated = 0;
-    state.teachers.forEach(t => t.qrText = buildQrText(t));
-    renderTable();
-    renderGrid();
-    $('genBtn').disabled = false;
-    $('zipBtn').disabled = true;
-
-    const msg = skipped > 0
-      ? `Loaded ${teachers.length} teachers. ${skipped} row(s) skipped (missing name).`
-      : `Loaded ${teachers.length} teachers.`;
-    showAlert($('parseAlert'), 'ok', msg);
+    state.recipients.forEach(r => r.qrText = buildQrText(r));
+    renderTable(); renderGrid(); updateBtnStates();
+    $('recipientsCard').style.display = 'block';
+    const msg = skipped>0 ? `Loaded ${list.length} recipients. ${skipped} row(s) skipped (missing name).` : `Loaded ${list.length} recipients.`;
+    showAlert($('parseAlert'),'ok', msg);
   }
 
-  // ---------- Sample data ----------
   $('loadSample').addEventListener('click', () => {
-    loadTeachers([
+    loadRecipients([
       { name:'Anita Sharma', email:'anita@example.com' },
-      { name:'Ravi Iyer',   email:'ravi@example.com'  },
-      { name:'Priya Menon', email:'priya@example.com' },
-      { name:'Karthik Rao', email:'karthik@example.com' },
-      { name:'Meera Nair',  email:'' },
-      { name:'Vikram Singh',email:'vikram@example.com' }
+      { name:'Ravi Iyer',    email:'ravi@example.com' },
+      { name:'Ravi Iyer',    email:'ravi.iyer2@example.com' },  // duplicate name, different email
+      { name:'Priya Menon',  email:'priya@example.com' },
+      { name:'Karthik Rao',  email:'karthik@example.com' },
+      { name:'Meera Nair',   email:'' }
     ]);
   });
 
   $('clearList').addEventListener('click', () => {
     revokeAllBlobs();
-    state.teachers = [];
-    state.generated = 0;
+    state.recipients = []; state.generated = 0;
     fileIn.value = '';
     $('dropTitle').textContent = 'Drop file here or click to browse';
-    renderTable(); renderGrid();
-    $('genBtn').disabled = true;
-    $('zipBtn').disabled = true;
+    $('recipientsCard').style.display = 'none';
+    renderTable(); renderGrid(); updateBtnStates();
     hideAlert($('parseAlert')); hideAlert($('genAlert'));
     $('genStatus').textContent = '';
   });
 
-  // ---------- Render ----------
+  // -------- Single mode --------
+  $('singleAddBtn').addEventListener('click', async () => {
+    const name = $('sName').value.trim();
+    if(!name){ $('singleStatus').textContent = 'Enter a name first.'; return; }
+    const r = {
+      id: uid(),
+      name,
+      email: $('sEmail').value.trim(),
+      f1: $('sF1').value.trim(),
+      f2: $('sF2').value.trim(),
+      qrText: '', blob:null, blobUrl:''
+    };
+    r.qrText = buildQrText(r);
+    state.recipients.push(r);
+    $('recipientsCard').style.display = 'block';
+
+    // generate immediately
+    try {
+      r.blob = await qrToBlob(r.qrText);
+      r.blobUrl = URL.createObjectURL(r.blob);
+      state.generated += 1;
+    } catch(e){ /* ignore */ }
+    renderTable(); renderGrid(); updateBtnStates();
+    $('singleStatus').textContent = `Added & generated QR for ${name}.`;
+    // clear form
+    $('sName').value = ''; $('sEmail').value = ''; $('sF1').value = ''; $('sF2').value = '';
+  });
+
+  // -------- Render --------
   function renderTable(){
     const tb = $('tBody');
-    $('stTotal').textContent = state.teachers.length;
-    $('stWithEmail').textContent = state.teachers.filter(t => t.email).length;
+    $('stTotal').textContent = state.recipients.length;
+    $('stWithEmail').textContent = state.recipients.filter(r => r.email).length;
     $('stGenerated').textContent = state.generated;
-
-    if(state.teachers.length === 0){
-      tb.innerHTML = `<tr><td colspan="4" class="empty">No teachers loaded yet.</td></tr>`;
+    if(state.recipients.length === 0){
+      tb.innerHTML = `<tr><td colspan="4" class="empty">No recipients loaded yet.</td></tr>`;
       return;
     }
-    tb.innerHTML = state.teachers.map((t, i) => `
+    tb.innerHTML = state.recipients.map((r,i) => `
       <tr>
         <td>${i+1}</td>
-        <td>${escapeHtml(t.name)}</td>
-        <td>${escapeHtml(t.email || '—')}</td>
-        <td><code>${escapeHtml(t.qrText)}</code></td>
-      </tr>
-    `).join('');
+        <td>${escapeHtml(r.name)}</td>
+        <td>${escapeHtml(r.email || '—')}</td>
+        <td><code>${escapeHtml(r.qrText)}</code></td>
+      </tr>`).join('');
   }
 
   function renderGrid(){
     const g = $('qrGrid');
-    if(state.teachers.length === 0){ g.innerHTML = ''; return; }
-    g.innerHTML = state.teachers.map((t, i) => `
-      <div class="qr-card" data-testid="qr-card-${i}">
-        <div class="qr-img">${t.blobUrl ? `<img src="${t.blobUrl}" alt="QR for ${escapeAttr(t.name)}"/>` : `<span style="color:var(--muted);font-size:12px">pending</span>`}</div>
-        <div class="qr-name">${escapeHtml(t.name)}</div>
-        <div class="qr-mail">${escapeHtml(t.email || '')}</div>
-        <div class="row">
-          <a class="btn btn-ghost btn-sm" ${t.blobUrl ? `href="${t.blobUrl}" download="${sanitizeFilename(t.name)}_QR.png"` : 'aria-disabled="true" style="pointer-events:none;opacity:.5"'} data-testid="dl-${i}">Download</a>
-        </div>
-      </div>
-    `).join('');
+    if(state.recipients.length === 0){ g.innerHTML = ''; return; }
+    g.innerHTML = state.recipients.map((r,i) => {
+      const ready = !!r.blobUrl;
+      const filename = `${sanitizeFilename(r.name)}_QR.png`;
+      return `
+        <div class="qr-card" data-testid="qr-card-${i}" data-id="${r.id}">
+          <div class="qr-img">${ready
+            ? `<img src="${r.blobUrl}" alt="QR for ${escapeHtml(r.name)}"/>`
+            : `<span style="color:var(--muted);font-size:12px">pending</span>`}</div>
+          <div class="qr-name">${escapeHtml(r.name)}</div>
+          <div class="qr-mail">${escapeHtml(r.email || '')}</div>
+          <div class="row">
+            <a class="btn btn-ghost btn-sm" ${ready ? `href="${r.blobUrl}" download="${filename}"` : 'aria-disabled="true" style="pointer-events:none;opacity:.5"'} data-testid="dl-${i}" title="Download PNG">⬇ Download</a>
+            <button class="btn btn-ghost btn-sm" data-act="email" data-id="${r.id}" ${ready && r.email ? '' : 'disabled'} data-testid="email-${i}" title="${r.email ? 'Email QR to recipient' : 'No email on file'}">✉ Email</button>
+          </div>
+          <div class="row">
+            <button class="btn btn-ghost btn-sm" data-act="print" data-id="${r.id}" ${ready ? '' : 'disabled'} data-testid="print-${i}" title="Print this QR">🖨 Print</button>
+          </div>
+        </div>`;
+    }).join('');
   }
 
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-  function escapeAttr(s){ return escapeHtml(s); }
+  function updateBtnStates(){
+    const has = state.recipients.length > 0;
+    const anyReady = state.recipients.some(r => r.blobUrl);
+    $('genBtn').disabled = !has;
+    $('zipBtn').disabled = !anyReady;
+    $('emailZipBtn').disabled = !anyReady;
+    $('printAllBtn').disabled = !anyReady;
+    $('printOneBtn').disabled = !anyReady;
+  }
 
-  // ---------- Generate ----------
+  // Event delegation for per-card actions
+  document.getElementById('qrGrid').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const r = state.recipients.find(x => x.id === id);
+    if(!r) return;
+    if(btn.dataset.act === 'email') return emailRecipient(r, btn);
+    if(btn.dataset.act === 'print') return printOne(r);
+  });
+
+  // -------- Generate (bulk) --------
   $('genBtn').addEventListener('click', generateAll);
   $('zipBtn').addEventListener('click', downloadZip);
+  $('emailZipBtn').addEventListener('click', emailZip);
+  $('printAllBtn').addEventListener('click', () => printAll('badges'));
+  $('printOneBtn').addEventListener('click', () => printAll('one'));
 
   async function generateAll(){
-    if(state.teachers.length === 0) return;
+    if(state.recipients.length === 0) return;
     hideAlert($('genAlert'));
-    $('genBtn').disabled = true;
-    $('zipBtn').disabled = true;
-    $('prog').classList.add('show');
-    $('progBar').style.width = '0%';
-
+    $('genBtn').disabled = true; $('zipBtn').disabled = true; $('emailZipBtn').disabled = true;
+    $('prog').classList.add('show'); $('progBar').style.width = '0%';
     revokeAllBlobs();
 
-    const total = state.teachers.length;
+    const total = state.recipients.length;
     let done = 0, failed = 0;
-
-    for(const t of state.teachers){
-      t.qrText = buildQrText(t);
+    for(const r of state.recipients){
+      r.qrText = buildQrText(r);
       try{
-        t.blob = await qrToBlob(t.qrText);
-        t.blobUrl = URL.createObjectURL(t.blob);
-      } catch(err){
-        t.blob = null; t.blobUrl = ''; failed++;
-      }
+        r.blob = await qrToBlob(r.qrText);
+        r.blobUrl = URL.createObjectURL(r.blob);
+      } catch(err){ r.blob = null; r.blobUrl = ''; failed++; }
       done++;
       $('progBar').style.width = `${Math.round(done/total*100)}%`;
       $('genStatus').textContent = `Generating ${done}/${total}…`;
       if(done % 4 === 0 || done === total) renderGrid();
-      // yield to keep UI responsive
-      await new Promise(r => setTimeout(r, 0));
+      await new Promise(rr => setTimeout(rr,0));
     }
-
-    state.generated = state.teachers.filter(t => t.blob).length;
-    renderTable(); renderGrid();
-    $('genBtn').disabled = false;
-    $('zipBtn').disabled = state.generated === 0;
-    $('genStatus').textContent = `Done. ${state.generated}/${total} generated${failed ? `, ${failed} failed` : ''}.`;
-
-    if(failed > 0){
-      showAlert($('genAlert'), 'warn', `${failed} QR code(s) failed to render. They will be skipped in the ZIP.`);
-    } else {
+    state.generated = state.recipients.filter(r => r.blob).length;
+    renderTable(); renderGrid(); updateBtnStates();
+    $('genStatus').textContent = `Done. ${state.generated}/${total} generated${failed?`, ${failed} failed`:''}.`;
+    if(failed>0) showAlert($('genAlert'),'warn',`${failed} QR(s) failed. They'll be skipped.`);
+    else {
       const logoNote = state.logoPlateUrl ? ' with your logo embedded' : '';
-      showAlert($('genAlert'), 'ok', `All ${total} QR codes generated${logoNote}. Click "Download ZIP" to save them.`);
+      showAlert($('genAlert'),'ok',`All ${total} QR codes generated${logoNote}.`);
     }
+  }
+
+  // -------- ZIP download --------
+  function dedupedFilenames(){
+    // Build map id -> filename, deduping by appending email-based suffix or _N
+    const counts = new Map();
+    for(const r of state.recipients){
+      if(!r.blob) continue;
+      const base = sanitizeFilename(r.name);
+      counts.set(base, (counts.get(base) || 0) + 1);
+    }
+    const used = new Map();
+    const out = new Map();
+    for(const r of state.recipients){
+      if(!r.blob) continue;
+      const base = sanitizeFilename(r.name);
+      let fname;
+      if((counts.get(base) || 0) > 1){
+        // use email local-part as disambiguator
+        const localpart = (r.email.split('@')[0] || '').replace(/[^a-zA-Z0-9._-]+/g,'_');
+        fname = localpart ? `${base}_${localpart}_QR.png` : `${base}_QR.png`;
+      } else {
+        fname = `${base}_QR.png`;
+      }
+      const u = (used.get(fname) || 0) + 1;
+      used.set(fname, u);
+      const final = u === 1 ? fname : fname.replace(/\.png$/, `_${u}.png`);
+      out.set(r.id, final);
+    }
+    return out;
+  }
+
+  async function buildZipBlob(){
+    const zip = new JSZip();
+    const names = dedupedFilenames();
+    for(const r of state.recipients){
+      if(!r.blob) continue;
+      zip.file(names.get(r.id), r.blob);
+    }
+    return await zip.generateAsync({ type:'blob' });
+  }
+
+  function zipFilename(){
+    const ev = sanitizeFilename($('evName').value || 'Event');
+    const yr = String($('evYear').value || '').trim();
+    return `${ev}${yr ? '_'+yr : ''}_QR_Codes.zip`;
   }
 
   async function downloadZip(){
     if(state.generated === 0) return;
-    $('zipBtn').disabled = true;
-    $('genStatus').textContent = 'Building ZIP…';
+    $('zipBtn').disabled = true; $('genStatus').textContent = 'Building ZIP…';
     try{
-      const zip = new JSZip();
-      // de-dupe filenames if any teachers share names
-      const used = new Map();
-      for(const t of state.teachers){
-        if(!t.blob) continue;
-        let base = sanitizeFilename(t.name) + '_QR';
-        const n = (used.get(base) || 0) + 1;
-        used.set(base, n);
-        const fname = (n === 1 ? base : `${base}_${n}`) + '.png';
-        zip.file(fname, t.blob);
-      }
-      const evName = sanitizeFilename($('evName').value || 'Event');
-      const year = String($('evYear').value || '').trim();
-      const zipName = `${evName}${year ? '_' + year : ''}_QR_Codes.zip`;
-      const blob = await zip.generateAsync({ type:'blob' });
+      const blob = await buildZipBlob();
+      const name = zipFilename();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = zipName;
+      const a = document.createElement('a'); a.href = url; a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
-      $('genStatus').textContent = `ZIP downloaded: ${zipName}`;
+      $('genStatus').textContent = `ZIP downloaded: ${name}`;
+    } catch(err){ showAlert($('genAlert'),'err',`Could not build ZIP: ${err.message}`); }
+    finally { updateBtnStates(); }
+  }
+
+  // -------- Email --------
+  function blobToBase64(blob){
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onloadend = () => {
+        const d = String(r.result);
+        const i = d.indexOf(',');
+        res(i >= 0 ? d.slice(i+1) : d);
+      };
+      r.onerror = () => rej(new Error('Could not encode blob'));
+      r.readAsDataURL(blob);
+    });
+  }
+
+  async function emailRecipient(r, btn){
+    if(!r.email){ showAlert($('genAlert'),'warn',`${r.name} has no email on file.`); return; }
+    if(!r.blob){ return; }
+    const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Sending…';
+    try{
+      const b64 = await blobToBase64(r.blob);
+      const res = await fetch(`${API_BASE}/api/send-qr-email`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          recipient_email: r.email,
+          recipient_name: r.name,
+          event_name: $('evName').value.trim(),
+          event_year: String($('evYear').value || '').trim(),
+          event_date: $('evDate').value.trim(),
+          event_venue: $('evVenue').value.trim(),
+          qr_text: r.qrText,
+          qr_png_base64: b64
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      showAlert($('genAlert'),'ok',`Email sent to ${r.email}.`);
+      btn.textContent = '✓ Sent';
     } catch(err){
-      showAlert($('genAlert'), 'err', `Could not build ZIP: ${err.message}`);
+      showAlert($('genAlert'),'err',`Email failed: ${err.message}`);
+      btn.textContent = orig;
     } finally {
-      $('zipBtn').disabled = false;
+      btn.disabled = !r.email || !r.blob;
+      setTimeout(() => { if(btn.textContent === '✓ Sent') btn.textContent = orig; }, 4000);
     }
   }
 
-  // ---------- Init ----------
+  async function emailZip(){
+    const org = $('orgEmail').value.trim();
+    if(!org){ showAlert($('genAlert'),'warn','Enter an organizer email in Event setup.'); return; }
+    if(state.generated === 0) return;
+    $('emailZipBtn').disabled = true; $('genStatus').textContent = 'Building ZIP & sending email…';
+    try{
+      const blob = await buildZipBlob();
+      const b64 = await blobToBase64(blob);
+      const res = await fetch(`${API_BASE}/api/send-zip-email`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          organizer_email: org,
+          event_name: $('evName').value.trim(),
+          event_year: String($('evYear').value || '').trim(),
+          recipient_count: state.generated,
+          zip_base64: b64,
+          zip_filename: zipFilename()
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      showAlert($('genAlert'),'ok',`ZIP emailed to ${org}.`);
+      $('genStatus').textContent = `ZIP emailed to ${org}.`;
+    } catch(err){
+      showAlert($('genAlert'),'err',`Email ZIP failed: ${err.message}`);
+    } finally { updateBtnStates(); }
+  }
+
+  // -------- Print --------
+  function buildPrintCard(r){
+    const ev = `${$('evName').value.trim()} ${$('evYear').value || ''}`.trim();
+    const date = $('evDate').value.trim();
+    const venue = $('evVenue').value.trim();
+    const meta = [date, venue].filter(Boolean).join(' · ');
+    return `
+      <div class="print-card">
+        <div class="pev">${escapeHtml(ev)}</div>
+        ${r.blobUrl ? `<img src="${r.blobUrl}" alt="QR"/>` : ''}
+        <div class="pn">${escapeHtml(r.name)}</div>
+        ${r.email ? `<div class="pe">${escapeHtml(r.email)}</div>` : ''}
+        ${meta ? `<div class="pe">${escapeHtml(meta)}</div>` : ''}
+        <div class="pt">${escapeHtml(r.qrText)}</div>
+      </div>`;
+  }
+
+  function printAll(layout){
+    const ready = state.recipients.filter(r => r.blobUrl);
+    if(ready.length === 0) return;
+    const cls = layout === 'one' ? 'print-grid-1' : 'print-grid-8';
+    const cards = ready.map(buildPrintCard).join('');
+    $('printSheet').innerHTML = `<div class="${cls}">${cards}</div>`;
+    setTimeout(() => window.print(), 50);
+  }
+
+  function printOne(r){
+    if(!r.blobUrl) return;
+    $('printSheet').innerHTML = `<div class="print-grid-1">${buildPrintCard(r)}</div>`;
+    setTimeout(() => window.print(), 50);
+  }
+
+  // -------- Init --------
   refreshPreview();
 })();
 </script>

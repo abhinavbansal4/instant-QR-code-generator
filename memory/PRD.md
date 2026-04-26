@@ -35,9 +35,25 @@ Generic website that generates a QR code for every teacher, for any year. Takes 
 - [x] Stylized QR look — square dots, extra-rounded corner-square frames, saffron accent on corner dots
 - [x] Validated end-to-end with logo (sample → 6 QRs with logo → ZIP downloaded)
 
+## Update (2026-02 — generic + delivery)
+- Renamed everything to **generic event QR generator** (recipients, not teachers); event-agnostic copy and defaults.
+- Added **Mode tabs**: Bulk upload vs Single QR (quick form: name, email, 2 custom fields).
+- **Custom field labels** in Setup; placeholders `{f1}`, `{f2}` usable in QR template; Excel/CSV columns are matched by these labels.
+- **Duplicate-name handling** in ZIP filenames: appends email local-part to disambiguate (e.g., `Ravi_Iyer_ravi_QR.png` + `Ravi_Iyer_ravi.iyer2_QR.png`); falls back to `_2`, `_3` if still colliding.
+- **Per-recipient actions**: Download · Email · Print.
+- **Bulk actions**: Download ZIP · Email ZIP to organizer · Print all (badges 4×2/page) · Print 1-per-page.
+- **Email integration**: Resend via FastAPI backend
+  - `POST /api/send-qr-email` — HTML "ticket" body (event title, date, venue, QR inline) + PNG attachment.
+  - `POST /api/send-zip-email` — ZIP attachment to organizer with summary HTML body.
+  - `GET  /api/email/health` — sender/config status.
+  - Sender: `onboarding@resend.dev` (test sender; in test mode Resend only delivers to the API-key owner's verified email; user verifies a domain at resend.com/domains for production sending).
+- **Animated gradient-mesh background** on hero/landing + glass-morphism cards with backdrop blur.
+- Print stylesheet via `@media print` — two layouts (A4 single + 4×2 badge sheet).
+- E2E verified: 6-recipient sample (with duplicate name) → generated → ZIP filenames deduped → email to verified address returned Resend `email_id` ✓.
+
 ## Backlog / Next
-- P1: Drag a folder containing many sheets (multi-file batch)
-- P1: Custom output filename pattern (e.g., `{year}_{name}.png`)
-- P2: Optional: Manual dark-mode toggle button
-- P2: Optional logo overlay on each QR
-- P2: Direct folder write via File System Access API (Chrome/Edge)
+- P1: Verify a real domain in Resend so emails can go to anyone (currently locked to API-key owner's email).
+- P1: Bundled default logo / brand presets per event.
+- P2: Save/Load setup as JSON, recent events history, manual dark-mode toggle.
+- P2: Multi-language email templates, custom email subject/body editor.
+- P2: Direct folder write via File System Access API (Chrome/Edge).
