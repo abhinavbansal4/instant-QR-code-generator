@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     logger.info("DB connection closed")
 
 app = FastAPI(lifespan=lifespan)
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter(prefix="")
 
 app.add_middleware(
     CORSMiddleware,
