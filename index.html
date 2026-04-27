@@ -1,0 +1,1827 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QR Events · Bulk &amp; Single QR Code Generator</title>
+<style>
+  :root{
+    --bg: #f5efe2;
+    --bg-2: #ece3cf;
+    --surface: rgba(255,255,255,.78);
+    --surface-solid: #ffffff;
+    --surface-2: #f4f1ea;
+    --border: #e7dcc6;
+    --text: #1a1a1a;
+    --muted: #6b675e;
+    --accent: #c2410c;
+    --accent-2: #ea580c;
+    --accent-3: #f59e0b;
+    --accent-soft: #fed7aa;
+    --accent-ink: #7c2d12;
+    --ok: #15803d;
+    --ok-soft: #dcfce7;
+    --warn: #a16207;
+    --warn-soft: #fef3c7;
+    --err: #b91c1c;
+    --err-soft: #fee2e2;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(60,40,10,.05), 0 12px 32px -16px rgba(60,40,10,.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg: #0f0e0a;
+      --surface: rgba(28,27,23,.72);
+      --surface-solid: #1c1b17;
+      --surface-2: #232118;
+      --border: #2e2b22;
+      --text: #f1ede2;
+      --muted: #9d9889;
+      --accent: #fb923c;
+      --accent-2: #f97316;
+      --accent-3: #fbbf24;
+      --accent-soft: #3a230f;
+      --accent-ink: #fed7aa;
+      --ok: #4ade80;
+      --ok-soft: #0f2e1d;
+      --warn: #fbbf24;
+      --warn-soft: #2d2410;
+      --err: #f87171;
+      --err-soft: #2d1414;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.6);
+    }
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--accent-soft);color:var(--accent-ink)}
+
+  /* ============ Animated gradient mesh background ============ */
+  .bg-mesh{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;
+    background:
+      radial-gradient(1100px 800px at 10% -10%, rgba(245,158,11,.55), transparent 60%),
+      radial-gradient(900px  700px at 95% 0%,   rgba(234,88,12,.50),  transparent 65%),
+      radial-gradient(1000px 800px at 70% 110%, rgba(194,65,12,.45),  transparent 60%),
+      radial-gradient(800px  700px at -10% 110%,rgba(251,191,36,.45), transparent 60%),
+      linear-gradient(180deg, #f7e9c8 0%, #f0d8a8 35%, #ecc78a 70%, #e8b56b 100%)
+  }
+  .bg-mesh::before{
+    content:"";position:absolute;inset:-30px;
+    background:
+      radial-gradient(420px 420px at var(--bx1,20%) var(--by1,30%), rgba(234,88,12,.55), transparent 65%),
+      radial-gradient(360px 360px at var(--bx2,80%) var(--by2,65%), rgba(245,158,11,.55), transparent 65%),
+      radial-gradient(500px 500px at var(--bx3,55%) var(--by3,90%), rgba(194,65,12,.45), transparent 65%);
+    filter:blur(40px);
+    animation:meshDrift 28s ease-in-out infinite alternate
+  }
+  .bg-mesh::after{
+    content:"";position:absolute;inset:0;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(0,0,0,.07) 1px, transparent 1.5px);
+    background-size:22px 22px;mix-blend-mode:multiply;opacity:.55
+  }
+  @media (prefers-color-scheme: dark){
+    .bg-mesh{background:
+      radial-gradient(1100px 800px at 10% -10%, rgba(245,158,11,.22), transparent 60%),
+      radial-gradient(900px 700px at 95% 0%,   rgba(234,88,12,.20),  transparent 65%),
+      radial-gradient(1000px 800px at 70% 110%, rgba(194,65,12,.20),  transparent 60%),
+      radial-gradient(600px 600px at 50% 50%,  rgba(251,146,60,.06), transparent 70%),
+      linear-gradient(180deg, #0c0b08 0%, #13110a 50%, #0c0b07 100%)
+    }
+    .bg-mesh::before{filter:blur(60px);opacity:.9}
+    .bg-mesh::after{background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 1.5px);mix-blend-mode:screen;opacity:.6}
+  }
+  @keyframes meshDrift{
+    0%   { --bx1:18%; --by1:25%; --bx2:82%; --by2:60%; --bx3:55%; --by3:88%; transform: scale(1) }
+    50%  { --bx1:30%; --by1:60%; --bx2:65%; --by2:30%; --bx3:38%; --by3:70%; transform: scale(1.04) }
+    100% { --bx1:55%; --by1:35%; --bx2:88%; --by2:80%; --bx3:25%; --by3:60%; transform: scale(1.02) }
+  }
+  /* note: CSS custom-property animation in keyframes works in modern browsers via @property registration; use a fallback transform too */
+  @property --bx1{syntax:"<percentage>";inherits:false;initial-value:20%}
+  @property --by1{syntax:"<percentage>";inherits:false;initial-value:30%}
+  @property --bx2{syntax:"<percentage>";inherits:false;initial-value:80%}
+  @property --by2{syntax:"<percentage>";inherits:false;initial-value:65%}
+  @property --bx3{syntax:"<percentage>";inherits:false;initial-value:55%}
+  @property --by3{syntax:"<percentage>";inherits:false;initial-value:90%}
+
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 22px 80px;position:relative;z-index:1}
+
+  /* ============ Hero ============ */
+  header.hero{
+    position:relative;overflow:hidden;
+    margin-bottom:30px;padding:42px 36px 38px;border-radius:24px;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.86), rgba(255,255,255,.55));
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.6);
+    box-shadow:0 30px 80px -30px rgba(120,60,10,.35), 0 1px 0 rgba(255,255,255,.7) inset
+  }
+  @media (prefers-color-scheme: dark){
+    header.hero{background:linear-gradient(135deg, rgba(40,30,16,.86), rgba(28,22,14,.6));border-color:rgba(255,255,255,.06)}
+  }
+  .hero-deco{position:absolute;inset:0;pointer-events:none;opacity:.55}
+  .hero-deco svg{position:absolute;right:-40px;top:-30px;width:340px;height:340px;color:#c2410c;opacity:.18;transform:rotate(8deg)}
+  .hero-deco .ring{position:absolute;width:280px;height:280px;border-radius:50%;
+    background:conic-gradient(from 0deg, rgba(245,158,11,.6), rgba(234,88,12,.0), rgba(194,65,12,.6), rgba(245,158,11,.0), rgba(245,158,11,.6));
+    filter:blur(30px);opacity:.55;left:-80px;bottom:-110px;animation:spin 24s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .hero-row{position:relative;display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+  .logo-mark{
+    width:64px;height:64px;border-radius:18px;flex-shrink:0;
+    background:conic-gradient(from 220deg at 50% 50%, #f59e0b, #ea580c, #c2410c, #f59e0b);
+    display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px;letter-spacing:.5px;
+    box-shadow:0 12px 28px -8px rgba(194,65,12,.6), 0 0 0 6px rgba(255,255,255,.5)
+  }
+  .hero-text{flex:1;min-width:240px}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 11px;border-radius:999px;
+    background:rgba(255,255,255,.6);border:1px solid rgba(194,65,12,.25);color:var(--accent-ink);
+    font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px}
+  .eyebrow .pulse{width:7px;height:7px;border-radius:50%;background:#c2410c;box-shadow:0 0 0 0 rgba(194,65,12,.7);animation:pulse 1.6s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(194,65,12,0)}100%{box-shadow:0 0 0 0 rgba(194,65,12,0)}}
+  h1{font-size:clamp(28px,3.6vw,44px);margin:0;letter-spacing:-.025em;font-weight:800;line-height:1.05}
+  h1 .grad{background:linear-gradient(90deg,#7c2d12,#c2410c 35%,#ea580c 65%,#f59e0b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--muted);font-size:14.5px;margin-top:10px;line-height:1.55;max-width:62ch}
+  .feature-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
+    background:rgba(255,255,255,.7);border:1px solid var(--border);color:var(--text);
+    font-size:12.5px;font-weight:600
+  }
+  .pill .ico{width:14px;height:14px;color:var(--accent)}
+  @media (prefers-color-scheme: dark){
+    .eyebrow{background:rgba(255,255,255,.04);border-color:rgba(251,146,60,.25);color:#fed7aa}
+    .pill{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
+  }
+
+  /* ============ Cards ============ */
+  .card{
+    background:var(--surface);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid var(--border);border-radius:var(--radius);
+    padding:22px;box-shadow:var(--shadow);margin-bottom:18px
+  }
+  .card h2{margin:0 0 4px;font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .card .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+
+  .grid{display:grid;gap:12px}
+  .grid.cols-2{grid-template-columns:1fr 1fr}
+  .grid.cols-3{grid-template-columns:repeat(3, 1fr)}
+  .grid.cols-4{grid-template-columns:repeat(4, 1fr)}
+  @media (max-width:760px){.grid.cols-2,.grid.cols-3,.grid.cols-4{grid-template-columns:1fr}}
+
+  label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+  input[type=text], input[type=number], input[type=email], textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+    background:var(--surface-solid);color:var(--text);font:inherit;font-size:14px;
+    transition:border-color .15s, box-shadow .15s
+  }
+  textarea{resize:vertical;min-height:80px;font-family:inherit}
+  input:focus, textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+  code{background:var(--surface-2);padding:2px 6px;border-radius:5px;font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace}
+
+  /* ============ Tabs ============ */
+  .tabs{
+    display:inline-flex;gap:4px;padding:4px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:12px;margin-bottom:14px
+  }
+  .tab{
+    appearance:none;border:none;background:transparent;color:var(--muted);
+    padding:8px 16px;border-radius:9px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;transition:all .15s
+  }
+  .tab:hover{color:var(--text)}
+  .tab.active{background:var(--surface-solid);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .tab .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+  /* ============ Buttons ============ */
+  .btn{
+    appearance:none;border:1px solid transparent;border-radius:10px;cursor:pointer;
+    padding:10px 16px;font:inherit;font-size:13.5px;font-weight:600;
+    transition:transform .05s, background .15s, border-color .15s, color .15s, box-shadow .15s;
+    display:inline-flex;align-items:center;gap:7px;text-decoration:none;line-height:1
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:linear-gradient(180deg,#ea580c,#c2410c);color:#fff;box-shadow:0 4px 12px -4px rgba(194,65,12,.5)}
+  .btn-primary:hover{filter:brightness(1.06)}
+  .btn-primary:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;box-shadow:none;filter:none}
+  .btn-ghost{background:var(--surface-solid);color:var(--text);border-color:var(--border)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-ghost:disabled{opacity:.5;cursor:not-allowed;border-color:var(--border);color:var(--muted)}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:8px;gap:5px}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;align-items:center}
+
+  /* ============ Logo picker ============ */
+  .logo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px}
+  .logo-pick{
+    display:flex;align-items:center;gap:14px;cursor:pointer;
+    padding:10px 12px;border:1px dashed var(--border);border-radius:10px;
+    background:var(--surface-2);flex:1;min-width:260px;transition:border-color .15s
+  }
+  .logo-pick:hover{border-color:var(--accent)}
+  .logo-pick input{display:none}
+  .logo-thumb{
+    width:60px;height:60px;border-radius:12px;background:#fff;border:1px solid var(--border);
+    display:grid;place-items:center;overflow:hidden;flex-shrink:0
+  }
+  .logo-thumb img{width:100%;height:100%;object-fit:contain}
+  .logo-thumb .ph{font-size:10.5px;color:var(--muted);text-align:center;padding:4px;line-height:1.3}
+  .logo-meta{font-size:13px}
+  .logo-meta b{font-weight:600}
+
+  /* ============ Live preview ============ */
+  .preview-qr{
+    display:flex;align-items:center;gap:14px;padding:12px;
+    background:var(--surface-2);border:1px dashed var(--border);border-radius:10px;margin-top:8px
+  }
+  .preview-qr canvas{width:104px;height:104px;border-radius:8px;background:#fff;padding:4px;border:1px solid var(--border)}
+  .preview-qr .pv-text{font-size:13px;color:var(--muted)}
+  .preview-qr .pv-text b{color:var(--text);font-weight:600}
+
+  /* ============ Drop zone ============ */
+  .drop{
+    border:2px dashed var(--border);border-radius:14px;padding:28px;text-align:center;
+    background:var(--surface-2);transition:border-color .2s, background .2s;cursor:pointer;display:block
+  }
+  .drop.over{border-color:var(--accent);background:var(--accent-soft)}
+  .drop .big{font-size:14.5px;font-weight:600;margin-bottom:6px}
+  .drop .small{font-size:12.5px;color:var(--muted)}
+  .drop input{display:none}
+
+  /* ============ Stats ============ */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  @media (max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{
+    background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;
+    padding:12px 14px
+  }
+  .stat .num{font-size:22px;font-weight:700;letter-spacing:-.02em}
+  .stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
+
+  /* ============ Table ============ */
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--surface-2)}
+  tbody tr:hover{background:var(--surface-2)}
+  .table-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:300px;overflow-y:auto;background:var(--surface-solid)}
+  .empty{padding:28px;text-align:center;color:var(--muted);font-size:14px}
+
+  /* ============ QR card grid ============ */
+  .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:8px}
+  .qr-card{
+    background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;
+    padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;
+    transition:border-color .15s, transform .15s
+  }
+  .qr-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .qr-card .qr-img{
+    width:140px;height:140px;background:#fff;border:1px solid var(--border);border-radius:8px;
+    display:grid;place-items:center;overflow:hidden
+  }
+  .qr-card .qr-img img{width:100%;height:100%;object-fit:contain}
+  .qr-card .qr-name{font-weight:600;font-size:13.5px;line-height:1.3;text-align:center;word-break:break-word}
+  .qr-card .qr-mail{font-size:11.5px;color:var(--muted);word-break:break-all;text-align:center}
+  .qr-card .row{display:flex;gap:6px;width:100%;flex-wrap:wrap}
+  .qr-card .row .btn{flex:1;justify-content:center;padding:6px 8px;font-size:11.5px}
+
+  /* ============ Progress + alerts ============ */
+  .progress{height:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-top:14px;display:none}
+  .progress.show{display:block}
+  .progress > span{display:block;height:100%;width:0%;background:linear-gradient(90deg,#f59e0b,#c2410c);transition:width .2s}
+
+  .alert{border-radius:10px;padding:11px 14px;font-size:13px;line-height:1.5;border:1px solid transparent;margin-top:14px;display:none}
+  .alert.show{display:block}
+  .alert.ok{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+  .alert.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+  .alert.err{background:var(--err-soft);color:var(--err);border-color:var(--err)}
+
+  footer{margin-top:30px;text-align:center;color:var(--muted);font-size:12px}
+  footer a{color:var(--accent);text-decoration:none}
+
+  /* ============ Modes ============ */
+  [data-mode-content]{display:none}
+  [data-mode-content].active{display:block}
+
+  /* ============ Check-in scanner ============ */
+  .checkin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 14px}
+  @media (max-width:680px){.checkin-stats{grid-template-columns:repeat(2,1fr)}}
+  .checkin-stats .stat.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+  .checkin-stats .stat.warn{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+  .checkin-stats .stat.ok .lbl, .checkin-stats .stat.warn .lbl{color:inherit;opacity:.8}
+
+  .ci-row{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:6px}
+  @media (max-width:760px){.ci-row{grid-template-columns:1fr}}
+  .scan-frame{
+    position:relative;width:100%;aspect-ratio:1/1;max-height:420px;border-radius:14px;overflow:hidden;
+    background:#0d0c08;border:1px solid var(--border)
+  }
+  .scan-frame video{width:100%;height:100%;object-fit:cover;display:block}
+  .scan-empty{position:absolute;inset:0;display:grid;place-items:center;color:#a39a85;gap:10px;text-align:center;font-size:13px;background:repeating-linear-gradient(45deg, rgba(255,255,255,.025) 0 8px, transparent 8px 18px), #14110a}
+  .scan-empty.hide{display:none}
+  .scan-overlay{position:absolute;inset:0;pointer-events:none}
+  .scan-overlay .scan-corners{
+    position:absolute;inset:14%;border-radius:14px;
+    background:
+      linear-gradient(#fff,#fff) left top   /28px 4px no-repeat,
+      linear-gradient(#fff,#fff) left top   /4px 28px no-repeat,
+      linear-gradient(#fff,#fff) right top  /28px 4px no-repeat,
+      linear-gradient(#fff,#fff) right top  /4px 28px no-repeat,
+      linear-gradient(#fff,#fff) left bottom /28px 4px no-repeat,
+      linear-gradient(#fff,#fff) left bottom /4px 28px no-repeat,
+      linear-gradient(#fff,#fff) right bottom /28px 4px no-repeat,
+      linear-gradient(#fff,#fff) right bottom /4px 28px no-repeat;
+    opacity:.55
+  }
+  .scan-overlay .scan-line{
+    position:absolute;left:14%;right:14%;top:14%;height:2px;border-radius:2px;
+    background:linear-gradient(90deg, transparent, #fb923c, transparent);
+    box-shadow:0 0 12px rgba(251,146,60,.7);
+    animation:scanmove 2.4s ease-in-out infinite alternate
+  }
+  @keyframes scanmove{from{transform:translateY(0)}to{transform:translateY(min(72%,300px))}}
+
+  .ci-side label{margin-bottom:6px}
+  .ci-side .hint{margin-top:8px}
+
+  /* ============ Modal ============ */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    background:rgba(15,12,5,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:1000;padding:20px}
+  .modal.show{display:flex}
+  .modal-card{
+    width:min(460px, 100%);background:var(--surface-solid);border:1px solid var(--border);
+    border-radius:18px;padding:22px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5);
+    animation:modalIn .15s ease-out
+  }
+  @keyframes modalIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;gap:14px;align-items:center;margin-bottom:14px}
+  .modal-emoji{width:54px;height:54px;border-radius:14px;background:var(--accent-soft);display:grid;place-items:center;font-size:26px;flex-shrink:0}
+  .modal-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+  .modal-title{font-size:20px;font-weight:700;letter-spacing:-.01em;margin-top:2px}
+  .modal-sub{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-all}
+  .modal-card.ok .modal-emoji{background:var(--ok-soft)}
+  .modal-card.ok .modal-eyebrow{color:var(--ok)}
+  .modal-card.warn .modal-emoji{background:var(--warn-soft)}
+  .modal-card.warn .modal-eyebrow{color:var(--warn)}
+  .modal-card.err .modal-emoji{background:var(--err-soft)}
+  .modal-card.err .modal-eyebrow{color:var(--err)}
+  .counter{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .cbtn{
+    width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface-solid);
+    font-size:18px;font-weight:700;cursor:pointer;color:var(--text)
+  }
+  .cbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .counter input{width:70px;text-align:center;font-weight:700;font-size:16px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+
+  .badge-ok{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--ok-soft);color:var(--ok);font-size:11px;font-weight:700;letter-spacing:.04em}
+  .badge-warn{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--warn-soft);color:var(--warn);font-size:11px;font-weight:700;letter-spacing:.04em}
+
+  /* ============ Cloud sync card ============ */
+  .cloud-card{
+    background:linear-gradient(135deg, rgba(194,65,12,.08), rgba(245,158,11,.08));
+    border:1px solid rgba(194,65,12,.25);
+  }
+  .cloud-status{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--surface-solid);border:1px solid var(--border);flex-wrap:wrap}
+  .cloud-status.connected{background:var(--ok-soft);border-color:var(--ok)}
+  .cloud-status .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0}
+  .cloud-status.connected .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(74,222,128,.18)}
+  .code-pill{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;font-weight:700;letter-spacing:.05em;padding:4px 10px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border)}
+  .copy-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--muted)}
+  .copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .share-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .share-row a{flex:1;min-width:160px;justify-content:center}
+
+  /* ============ Print styles ============ */
+  .print-sheet{display:none}
+  .print-sheet h3{font-size:16px;margin:0 0 8px}
+  .print-card{
+    page-break-inside:avoid;break-inside:avoid;
+    border:1px solid #ddd;border-radius:10px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;color:#000
+  }
+  .print-card img{width:240px;height:240px}
+  .print-card .pn{font-weight:700;font-size:14px;text-align:center}
+  .print-card .pe{font-size:12px;color:#555;text-align:center}
+  .print-card .pt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;color:#666;text-align:center;word-break:break-all}
+  .print-card .pev{font-size:11px;color:#888;letter-spacing:.05em;text-transform:uppercase}
+
+  @media print{
+    @page{margin:14mm}
+    body{background:#fff !important;color:#000}
+    .bg-mesh, header.hero, .card, footer, .no-print{display:none !important}
+    .print-sheet{display:block !important}
+    .print-grid-1{display:grid;grid-template-columns:1fr;gap:0}
+    .print-grid-1 .print-card{height:calc(100vh - 28mm);justify-content:center;border:none;page-break-after:always}
+    .print-grid-1 .print-card img{width:340px;height:340px}
+    .print-grid-1 .print-card .pn{font-size:22px}
+    .print-grid-8{display:grid;grid-template-columns:1fr 1fr;gap:6mm}
+    .print-grid-8 .print-card img{width:80mm;height:80mm}
+  }
+
+  /* ============ Shared topnav ============ */
+  .topnav{display:flex;align-items:center;gap:8px;padding:10px 16px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 2px 12px -4px rgba(0,0,0,.08);}
+  .nav-logo{font-weight:900;font-size:15px;letter-spacing:.06em;color:#fff;text-decoration:none;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#f97316,#c2410c);display:grid;place-items:center;flex-shrink:0;box-shadow:0 4px 12px -4px rgba(194,65,12,.5);margin-right:4px;}
+  .nav-links{display:flex;gap:4px;align-items:center;flex:1;flex-wrap:wrap}
+  .nav-link{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;color:var(--muted);border:1px solid transparent;transition:all .15s;white-space:nowrap;}
+  .nav-link svg{width:15px;height:15px;flex-shrink:0;opacity:.7}
+  .nav-link:hover{background:var(--surface-2);color:var(--text);border-color:var(--border)}
+  .nav-link.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent-soft)}
+  .nav-link.active svg{opacity:1}
+  @media(max-width:600px){.nav-link span{display:none}.nav-link{padding:8px}.nav-link svg{width:18px;height:18px}}
+</style>
+</head>
+<body>
+
+<div class="bg-mesh" aria-hidden="true"></div>
+
+<div class="wrap no-print">
+
+<nav class="topnav no-print">
+  <a class="nav-logo" href="/">QR</a>
+  <div class="nav-links">
+    <a href="/" class="nav-link active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Generator</span></a>
+    <a href="/scan.html" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg><span>Scanner</span></a>
+    <a href="/dashboard.html" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="3" y="12" width="7" height="9" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/></svg><span>Dashboard</span></a>
+    <a href="/checkin.html" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg><span>Self Check-in</span></a>
+  </div>
+</nav>
+
+  <header class="hero">
+    <div class="hero-deco" aria-hidden="true">
+      <div class="ring"></div>
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="6" y="6" width="18" height="18" rx="3"/><rect x="11" y="11" width="8" height="8" fill="currentColor"/>
+        <rect x="40" y="6" width="18" height="18" rx="3"/><rect x="45" y="11" width="8" height="8" fill="currentColor"/>
+        <rect x="6" y="40" width="18" height="18" rx="3"/><rect x="11" y="45" width="8" height="8" fill="currentColor"/>
+        <rect x="32" y="32" width="6" height="6"/><rect x="44" y="32" width="6" height="6"/>
+        <rect x="32" y="44" width="6" height="6"/><rect x="44" y="44" width="6" height="6"/>
+        <rect x="38" y="38" width="6" height="6"/><rect x="50" y="50" width="6" height="6"/>
+      </svg>
+    </div>
+    <div class="hero-row">
+      <div class="logo-mark">QR</div>
+      <div class="hero-text">
+        <span class="eyebrow"><span class="pulse"></span>Event QR Toolkit</span>
+        <h1>Generate, deliver &amp; <span class="grad">check‑in attendees</span> with QR codes.</h1>
+        <p class="tag">
+          Upload an Excel/CSV list or generate one at a time. Embed your logo, download a ZIP,
+          print as badges, email each pass directly to the recipient — then scan QRs at the door for live attendance.
+        </p>
+        <div class="feature-pills">
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/></svg>Bulk &amp; single</span>
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M3 7h4l2-3h6l2 3h4v12H3z"/></svg>Logo embedded</span>
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>Email delivery</span>
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="3" width="12" height="6" rx="1"/><rect x="6" y="14" width="12" height="7" rx="1"/><path d="M6 9H4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/></svg>Print badges</span>
+          <span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="4"/></svg>Live check‑in</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ Event setup ============ -->
+  <section class="card">
+    <h2>Event setup</h2>
+    <div class="sub">These details are reused in QR text, file names, and email content.</div>
+
+    <div class="grid cols-3">
+      <div>
+        <label for="evName">Event name</label>
+        <input id="evName" type="text" value="My Event" placeholder="e.g. Annual Conference" data-testid="event-name-input"/>
+      </div>
+      <div>
+        <label for="evYear">Year</label>
+        <input id="evYear" type="number" min="1900" max="2999" value="2026" data-testid="event-year-input"/>
+      </div>
+      <div>
+        <label for="qrSize">QR size (px)</label>
+        <input id="qrSize" type="number" min="64" max="1000" step="32" value="320" data-testid="qr-size-input"/>
+      </div>
+    </div>
+
+    <div class="grid cols-3" style="margin-top:12px">
+      <div>
+        <label for="evDate">Date <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="evDate" type="text" placeholder="e.g. 14 Mar 2026" data-testid="event-date-input"/>
+      </div>
+      <div>
+        <label for="evVenue">Venue <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="evVenue" type="text" placeholder="e.g. City Hall, NYC" data-testid="event-venue-input"/>
+      </div>
+      <div>
+        <label for="orgEmail">Organizer email <span style="text-transform:none;color:var(--muted);font-weight:400">(for ZIP email)</span></label>
+        <input id="orgEmail" type="email" placeholder="organizer@example.com" data-testid="organizer-email-input"/>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <label for="qrTpl">QR text template</label>
+      <input id="qrTpl" type="text" value="{event_name} {year} - {name}" data-testid="qr-template-input"/>
+      <div class="hint">
+        Placeholders: <code>{event_name}</code>, <code>{year}</code>, <code>{name}</code>, <code>{email}</code>, <code>{f1}</code>, <code>{f2}</code>
+      </div>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:12px">
+      <div>
+        <label for="f1Label">Custom field 1 label <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="f1Label" type="text" placeholder="e.g. Department" data-testid="f1-label-input"/>
+      </div>
+      <div>
+        <label for="f2Label">Custom field 2 label <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="f2Label" type="text" placeholder="e.g. Role" data-testid="f2-label-input"/>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <label>Center logo (optional)</label>
+      <div class="logo-row">
+        <label class="logo-pick" for="logoIn" data-testid="logo-picker">
+          <input id="logoIn" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" data-testid="logo-input"/>
+          <div class="logo-thumb" id="logoThumb"><div class="ph">Click to<br/>upload</div></div>
+          <div class="logo-meta">
+            <div><b id="logoName">No logo selected</b></div>
+            <div class="hint" style="margin-top:2px">PNG · JPG · SVG · WebP — auto-padded with rounded white plate</div>
+          </div>
+        </label>
+        <button id="logoClear" class="btn btn-ghost btn-sm" type="button" data-testid="logo-clear-btn" style="display:none">Remove</button>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <label>Live preview <span id="pvHint" style="text-transform:none;color:var(--muted);font-weight:400;letter-spacing:0;font-size:11.5px">(showing sample — add recipients in the tabs below to use real names)</span></label>
+      <div class="preview-qr" data-testid="qr-preview">
+        <canvas id="pvCanvas" width="320" height="320" aria-label="preview"></canvas>
+        <div class="pv-text">
+          Preview encodes:&nbsp;<b id="pvText">—</b>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Cloud sync ============ -->
+  <section class="card cloud-card">
+    <h2>☁️ Cloud sync · multi-device check-in</h2>
+    <div class="sub">
+      Saves this event + all recipients to the server and gives you a shareable <b>event code</b>.
+      Open the scanner or dashboard on any device with that code — multiple staff can scan at the same door without duplicate check-ins.
+      <br/>Without saving, recipients only live in <em>this browser</em>.
+    </div>
+
+    <div class="cloud-status" id="cloudStatus" data-testid="cloud-status">
+      <div class="dot"></div>
+      <div style="flex:1">
+        <div id="cloudText"><b>Local only</b> — recipients are saved in this browser. Save to cloud to enable scanner &amp; dashboard.</div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:10px">
+      <button class="btn btn-primary" id="cloudSaveBtn" type="button" data-testid="cloud-save-btn">Save event to cloud</button>
+      <button class="btn btn-ghost" id="cloudSyncBtn" type="button" disabled data-testid="cloud-sync-btn">Re-sync recipients</button>
+      <input id="loadCodeInput" type="text" placeholder="Or load existing code" data-testid="load-code-input" style="max-width:200px;text-transform:uppercase;letter-spacing:.04em"/>
+      <button class="btn btn-ghost" id="cloudLoadBtn" type="button" data-testid="cloud-load-btn">Load</button>
+      <button class="btn btn-ghost btn-sm" id="cloudDisconnectBtn" type="button" disabled data-testid="cloud-disconnect-btn">Disconnect</button>
+    </div>
+
+    <div class="share-row" id="shareRow" style="display:none">
+      <a class="btn btn-ghost" id="shareScan" target="_blank" data-testid="share-scan-link">📷 Open scanner →</a>
+      <a class="btn btn-ghost" id="shareDash" target="_blank" data-testid="share-dash-link">📊 Open dashboard →</a>
+    </div>
+
+    <div class="alert" id="cloudAlert"></div>
+  </section>
+
+  <!-- ============ Mode tabs ============ -->
+  <section class="card">
+    <h2>Add recipients</h2>
+    <div class="sub">Pick how you want to add people. The Live preview above will show <em>their</em> name once added.</div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="bulk" type="button" data-testid="tab-bulk"><span class="dot"></span>Bulk upload</button>
+      <button class="tab" data-tab="single" type="button" data-testid="tab-single"><span class="dot"></span>Single QR</button>
+      <button class="tab" data-tab="checkin" type="button" data-testid="tab-checkin"><span class="dot"></span>Check‑in</button>
+    </div>
+
+    <!-- Bulk mode -->
+    <div data-mode-content="bulk" class="active">
+      <h2>Upload a list</h2>
+      <div class="sub">Excel (.xlsx, .xls) or CSV. Required column: <code>name</code>. Optional: <code>email</code>, custom fields by their label.</div>
+
+      <label class="drop" id="drop" data-testid="dropzone">
+        <input id="fileIn" type="file" accept=".xlsx,.xls,.csv" data-testid="file-input"/>
+        <div class="big" id="dropTitle">Drop file here or click to browse</div>
+        <div class="small">Accepts .xlsx · .xls · .csv</div>
+      </label>
+
+      <div class="actions">
+        <button class="btn btn-ghost btn-sm" id="loadSample" type="button" data-testid="load-sample-btn">Load sample data</button>
+        <button class="btn btn-ghost btn-sm" id="clearList" type="button" data-testid="clear-list-btn">Clear list</button>
+      </div>
+
+      <div class="alert" id="parseAlert"></div>
+    </div>
+
+    <!-- Single mode -->
+    <div data-mode-content="single">
+      <h2>Generate one QR</h2>
+      <div class="sub">Quickly create a single QR for one recipient.</div>
+
+      <div class="grid cols-2">
+        <div>
+          <label for="sName">Name *</label>
+          <input id="sName" type="text" placeholder="Full name" data-testid="single-name-input"/>
+        </div>
+        <div>
+          <label for="sEmail">Email <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+          <input id="sEmail" type="email" placeholder="recipient@example.com" data-testid="single-email-input"/>
+        </div>
+      </div>
+      <div class="grid cols-2" style="margin-top:12px">
+        <div>
+          <label for="sF1"><span id="sF1Label">Field 1</span></label>
+          <input id="sF1" type="text" data-testid="single-f1-input"/>
+        </div>
+        <div>
+          <label for="sF2"><span id="sF2Label">Field 2</span></label>
+          <input id="sF2" type="text" data-testid="single-f2-input"/>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="singleAddBtn" type="button" data-testid="single-add-btn">Generate QR</button>
+        <span class="hint" id="singleStatus"></span>
+      </div>
+    </div>
+
+    <!-- Check-in mode -->
+    <div data-mode-content="checkin">
+      <h2>Check-in scanner</h2>
+      <div class="sub">Scan QR codes with your camera (or paste manually) to check in attendees in real-time.</div>
+
+      <div class="checkin-stats">
+        <div class="stat"><div class="num" id="ciTotal" data-testid="ci-stat-total">0</div><div class="lbl">Total recipients</div></div>
+        <div class="stat ok"><div class="num" id="ciIn" data-testid="ci-stat-in">0</div><div class="lbl">Checked in</div></div>
+        <div class="stat warn"><div class="num" id="ciPending" data-testid="ci-stat-pending">0</div><div class="lbl">Pending</div></div>
+        <div class="stat"><div class="num" id="ciPeople" data-testid="ci-stat-people">0</div><div class="lbl">Total people</div></div>
+      </div>
+
+      <div class="ci-row">
+        <div class="ci-scanner">
+          <div class="scan-frame" id="scanFrame">
+            <video id="scanVideo" playsinline muted autoplay></video>
+            <div class="scan-overlay"><div class="scan-corners"></div><div class="scan-line"></div></div>
+            <div class="scan-empty" id="scanEmpty">
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M21 7V5a2 2 0 0 0-2-2h-2"/>
+                <path d="M3 17v2a2 2 0 0 0 2 2h2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+                <rect x="7" y="7" width="10" height="10" rx="1"/>
+              </svg>
+              <div>Camera off</div>
+            </div>
+          </div>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn btn-primary" id="scanStart" type="button" data-testid="scan-start-btn">Start camera</button>
+            <button class="btn btn-ghost" id="scanStop" type="button" disabled data-testid="scan-stop-btn">Stop</button>
+            <span class="hint" id="scanStatus"></span>
+          </div>
+        </div>
+
+        <div class="ci-side">
+          <label for="manualScan">Manual entry</label>
+          <input id="manualScan" type="text" placeholder="Paste QR text here" data-testid="manual-scan-input"/>
+          <button class="btn btn-ghost btn-sm" id="manualScanBtn" type="button" style="margin-top:6px" data-testid="manual-scan-btn">Look up</button>
+          <div class="hint" style="margin-top:8px">No recipients loaded? Switch to Bulk or Single tab to add some — they auto-sync here. State is also saved in your browser.</div>
+
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" id="exportCsvBtn" type="button" data-testid="export-csv-btn">Export attendance CSV</button>
+            <button class="btn btn-ghost btn-sm" id="resetCheckinsBtn" type="button" data-testid="reset-checkins-btn">Reset all check-ins</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert" id="ciAlert"></div>
+
+      <h3 style="margin:18px 0 8px;font-size:14px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase">Recent check-ins</h3>
+      <div class="table-wrap" style="max-height:260px">
+        <table>
+          <thead>
+            <tr><th>Time</th><th>Name</th><th>Email</th><th style="width:80px">People</th><th style="width:90px">Status</th></tr>
+          </thead>
+          <tbody id="ciTbody" data-testid="checkin-tbody">
+            <tr><td colspan="5" class="empty">No activity yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Check-in confirm modal -->
+  <div class="modal" id="ciModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card" data-testid="checkin-modal">
+      <div class="modal-head">
+        <div class="modal-emoji" id="modalEmoji">👋</div>
+        <div>
+          <div class="modal-eyebrow" id="modalEyebrow">Found</div>
+          <div class="modal-title" id="modalTitle">—</div>
+          <div class="modal-sub" id="modalSub">—</div>
+        </div>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <label>People in this group</label>
+        <div class="counter">
+          <button class="cbtn" id="cMinus" type="button" data-testid="people-minus">−</button>
+          <input id="cCount" type="number" min="1" value="1" data-testid="people-count"/>
+          <button class="cbtn" id="cPlus" type="button" data-testid="people-plus">+</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cCancel" type="button" data-testid="checkin-cancel">Cancel</button>
+        <button class="btn btn-primary" id="cConfirm" type="button" data-testid="checkin-confirm">Confirm check-in</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Recipients table (bulk only) ============ -->
+  <section class="card" id="recipientsCard" style="display:none">
+    <h2>Loaded recipients</h2>
+    <div class="sub">Review the parsed list before generating QR codes.</div>
+
+    <div class="stats">
+      <div class="stat"><div class="num" id="stTotal" data-testid="stat-total">0</div><div class="lbl">Total recipients</div></div>
+      <div class="stat"><div class="num" id="stWithEmail" data-testid="stat-with-email">0</div><div class="lbl">With email</div></div>
+      <div class="stat"><div class="num" id="stGenerated" data-testid="stat-generated">0</div><div class="lbl">QRs generated</div></div>
+      <div class="stat"><div class="num" id="stEvent" data-testid="stat-event">—</div><div class="lbl">Event</div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width:40px">#</th><th>Name</th><th>Email</th><th>QR text</th></tr>
+        </thead>
+        <tbody id="tBody" data-testid="recipients-tbody">
+          <tr><td colspan="4" class="empty">No recipients loaded yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ Generate + actions ============ -->
+  <section class="card" id="generateCard">
+    <h2>Generate &amp; deliver</h2>
+    <div class="sub">QR codes are rendered locally with your logo embedded — no upload, no server.</div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="genBtn" type="button" disabled data-testid="generate-btn">Generate QR codes</button>
+      <button class="btn btn-ghost" id="zipBtn" type="button" disabled data-testid="download-zip-btn">Download ZIP</button>
+      <button class="btn btn-ghost" id="emailZipBtn" type="button" disabled data-testid="email-zip-btn">Email ZIP to organizer</button>
+      <button class="btn btn-ghost" id="printAllBtn" type="button" disabled data-testid="print-all-btn">Print all (badges)</button>
+      <button class="btn btn-ghost" id="printOneBtn" type="button" disabled data-testid="print-one-btn">Print 1 per page</button>
+      <span id="genStatus" class="hint" style="margin-left:6px"></span>
+    </div>
+
+    <div class="progress" id="prog"><span id="progBar"></span></div>
+    <div class="alert" id="genAlert"></div>
+
+    <div class="qr-grid" id="qrGrid" data-testid="qr-grid"></div>
+  </section>
+
+  <footer>
+    QR Events · client-side QR via qr-code-styling · Excel via SheetJS · ZIP via JSZip · Email via Resend
+  </footer>
+</div>
+
+<!-- Print sheet (hidden on screen, visible on print) -->
+<div class="print-sheet" id="printSheet" aria-hidden="true"></div>
+
+<!-- Libraries (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<script>
+(() => {
+  // -------- State --------
+  const state = {
+    recipients: [],   // {id, name, email, f1, f2, qrText, blob, blobUrl}
+    generated: 0,
+    logoDataUrl: null,
+    logoPlateUrl: null
+  };
+
+  const API_BASE = ''; // same origin via /api ingress
+  const $ = (id) => document.getElementById(id);
+
+  // -------- Helpers --------
+  function uid(){ return 'r' + Math.random().toString(36).slice(2,10); }
+
+  function sanitizeFilename(name){
+    return String(name).trim()
+      .replace(/[\\/:*?"<>|]+/g, '')
+      .replace(/\s+/g, '_')
+      .slice(0, 80) || 'recipient';
+  }
+
+  function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  function buildQrText(r){
+    const tpl = $('qrTpl').value || '{event_name} {year} - {name}';
+    return tpl
+      .replaceAll('{event_name}', $('evName').value.trim())
+      .replaceAll('{year}', String($('evYear').value).trim())
+      .replaceAll('{name}', r.name || '')
+      .replaceAll('{email}', r.email || '')
+      .replaceAll('{f1}', r.f1 || '')
+      .replaceAll('{f2}', r.f2 || '');
+  }
+
+  function qrSize(){
+    return Math.max(64, Math.min(1000, parseInt($('qrSize').value || '320', 10)));
+  }
+
+  function showAlert(el, kind, msg){ el.className = `alert show ${kind}`; el.textContent = msg; }
+  function hideAlert(el){ el.className = 'alert'; el.textContent = ''; }
+
+  // -------- QR generation --------
+  function makeQRStyling(text, opts={}){
+    const size = qrSize();
+    return new QRCodeStyling({
+      width: size, height: size, type: 'canvas',
+      data: text, margin: 4,
+      qrOptions: { errorCorrectionLevel: 'H' },
+      image: state.logoPlateUrl || undefined,
+      imageOptions: { crossOrigin:'anonymous', margin:2, imageSize:0.18, hideBackgroundDots:true },
+      dotsOptions: { type:'square', color:'#111111' },
+      backgroundOptions: { color:'#ffffff' },
+      cornersSquareOptions: { type:'extra-rounded', color:'#111111' },
+      cornersDotOptions: { type:'dot', color:'#c2410c' },
+      ...opts
+    });
+  }
+  async function qrToBlob(text){ return await makeQRStyling(text).getRawData('png'); }
+
+  // -------- Logo --------
+  function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+  function logoToPlate(srcUrl){
+    return new Promise((resolve, reject) => {
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const size=512, padding=56, inner=size-padding*2;
+        const cv=document.createElement('canvas'); cv.width=cv.height=size;
+        const ctx=cv.getContext('2d');
+        ctx.fillStyle='#ffffff'; roundRect(ctx,0,0,size,size,88); ctx.fill();
+        const ratio=Math.min(inner/img.width, inner/img.height);
+        const w=img.width*ratio, h=img.height*ratio;
+        ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);
+        resolve(cv.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Could not read logo image'));
+      img.src = srcUrl;
+    });
+  }
+  function readFileAsDataUrl(f){
+    return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('Could not read file'));r.readAsDataURL(f);});
+  }
+
+  $('logoIn').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if(!f) return;
+    try {
+      const raw = await readFileAsDataUrl(f);
+      state.logoDataUrl = raw;
+      state.logoPlateUrl = await logoToPlate(raw);
+      $('logoThumb').innerHTML = `<img src="${state.logoPlateUrl}" alt="logo"/>`;
+      $('logoName').textContent = f.name;
+      $('logoClear').style.display = 'inline-flex';
+      invalidateQrs();
+      refreshPreview();
+    } catch(err){ alert(err.message); }
+  });
+  $('logoClear').addEventListener('click', () => {
+    state.logoDataUrl = null; state.logoPlateUrl = null;
+    $('logoIn').value = '';
+    $('logoThumb').innerHTML = `<div class="ph">Click to<br/>upload</div>`;
+    $('logoName').textContent = 'No logo selected';
+    $('logoClear').style.display = 'none';
+    invalidateQrs(); refreshPreview();
+  });
+
+  function invalidateQrs(){
+    revokeAllBlobs();
+    state.recipients.forEach(r => { r.blob = null; r.blobUrl = ''; });
+    state.generated = 0;
+    renderTable(); renderGrid(); updateBtnStates();
+  }
+  function revokeAllBlobs(){
+    for(const r of state.recipients){ if(r.blobUrl){ URL.revokeObjectURL(r.blobUrl); r.blobUrl=''; } }
+  }
+
+  // -------- Preview --------
+  let pvDebounce;
+  function refreshPreview(){
+    const hasRecipients = state.recipients.length > 0;
+    const sample = state.recipients[0] || { name:'Alex Doe', email:'alex@example.com', f1:'', f2:'' };
+    const text = buildQrText(sample);
+    $('pvText').textContent = text;
+    $('stEvent').textContent = `${$('evName').value.trim() || '—'} ${$('evYear').value || ''}`.trim();
+    const pvHint = $('pvHint');
+    if(pvHint){
+      pvHint.textContent = hasRecipients
+        ? `(showing first of ${state.recipients.length} loaded recipient${state.recipients.length === 1 ? '' : 's'})`
+        : `(showing sample "Alex Doe" — add recipients in the tabs below to use real names)`;
+    }
+    if(hasRecipients){
+      state.recipients.forEach(r => r.qrText = buildQrText(r));
+      renderTable();
+    }
+    clearTimeout(pvDebounce);
+    pvDebounce = setTimeout(() => {
+      const target = document.querySelector('.preview-qr');
+      const old = target.querySelector('canvas, .qr-preview-host');
+      const host = document.createElement('div');
+      host.className = 'qr-preview-host';
+      makeQRStyling(text, { width:208, height:208 }).append(host);
+      if(old) target.replaceChild(host, old); else target.insertBefore(host, target.firstChild);
+    }, 120);
+
+    // also update single-form custom field labels
+    $('sF1Label').textContent = $('f1Label').value.trim() || 'Field 1';
+    $('sF2Label').textContent = $('f2Label').value.trim() || 'Field 2';
+  }
+  ['evName','evYear','qrTpl','qrSize','f1Label','f2Label'].forEach(id => $(id).addEventListener('input', refreshPreview));
+
+  // -------- Tabs --------
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    const tab = t.dataset.tab;
+    document.querySelectorAll('[data-mode-content]').forEach(c => {
+      c.classList.toggle('active', c.dataset.modeContent === tab);
+    });
+  }));
+
+  // -------- File parsing (bulk) --------
+  const drop = $('drop'), fileIn = $('fileIn');
+  drop.addEventListener('click', () => fileIn.click());
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault(); drop.classList.remove('over');
+    const f = e.dataTransfer.files[0]; if (f) handleFile(f);
+  });
+  fileIn.addEventListener('change', (e) => { const f = e.target.files[0]; if (f) handleFile(f); });
+
+  function handleFile(file){
+    hideAlert($('parseAlert'));
+    $('dropTitle').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try{
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, { type:'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+        loadRecipients(rows);
+      } catch(err){ showAlert($('parseAlert'), 'err', `Could not parse file: ${err.message}`); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function loadRecipients(rows){
+    if(!Array.isArray(rows) || rows.length === 0){ showAlert($('parseAlert'),'err','No rows found.'); return; }
+    revokeAllBlobs();
+    const f1Lbl = ($('f1Label').value || '').toLowerCase().trim();
+    const f2Lbl = ($('f2Label').value || '').toLowerCase().trim();
+    const list = []; let skipped = 0;
+    for(const row of rows){
+      const lower = {};
+      for(const k of Object.keys(row)) lower[k.toLowerCase().trim()] = row[k];
+      const name = String(lower['name'] ?? lower['recipient'] ?? lower['teacher'] ?? lower['teacher_name'] ?? lower['full name'] ?? '').trim();
+      const email = String(lower['email'] ?? lower['mail'] ?? '').trim();
+      const f1 = f1Lbl ? String(lower[f1Lbl] ?? '').trim() : '';
+      const f2 = f2Lbl ? String(lower[f2Lbl] ?? '').trim() : '';
+      if(!name){ skipped++; continue; }
+      list.push({ id: uid(), name, email, f1, f2, qrText:'', blob:null, blobUrl:'' });
+    }
+    if(list.length === 0){ showAlert($('parseAlert'),'err','No valid rows. Make sure your file has a "name" column.'); return; }
+    state.recipients = list;
+    state.generated = 0;
+    state.recipients.forEach(r => r.qrText = buildQrText(r));
+    renderTable(); renderGrid(); updateBtnStates();
+    refreshPreview();
+    $('recipientsCard').style.display = 'block';
+    const msg = skipped>0 ? `Loaded ${list.length} recipients. ${skipped} row(s) skipped (missing name).` : `Loaded ${list.length} recipients.`;
+    showAlert($('parseAlert'),'ok', msg);
+  }
+
+  $('loadSample').addEventListener('click', () => {
+    loadRecipients([
+      { name:'Anita Sharma', email:'anita@example.com' },
+      { name:'Ravi Iyer',    email:'ravi@example.com' },
+      { name:'Ravi Iyer',    email:'ravi.iyer2@example.com' },  // duplicate name, different email
+      { name:'Priya Menon',  email:'priya@example.com' },
+      { name:'Karthik Rao',  email:'karthik@example.com' },
+      { name:'Meera Nair',   email:'' }
+    ]);
+  });
+
+  $('clearList').addEventListener('click', () => {
+    revokeAllBlobs();
+    state.recipients = []; state.generated = 0;
+    fileIn.value = '';
+    $('dropTitle').textContent = 'Drop file here or click to browse';
+    $('recipientsCard').style.display = 'none';
+    renderTable(); renderGrid(); updateBtnStates();
+    refreshPreview();
+    hideAlert($('parseAlert')); hideAlert($('genAlert'));
+    $('genStatus').textContent = '';
+  });
+
+  // -------- Single mode --------
+  $('singleAddBtn').addEventListener('click', async () => {
+    const name = $('sName').value.trim();
+    if(!name){ $('singleStatus').textContent = 'Enter a name first.'; return; }
+    const r = {
+      id: uid(),
+      name,
+      email: $('sEmail').value.trim(),
+      f1: $('sF1').value.trim(),
+      f2: $('sF2').value.trim(),
+      qrText: '', blob:null, blobUrl:''
+    };
+    r.qrText = buildQrText(r);
+    state.recipients.push(r);
+    $('recipientsCard').style.display = 'block';
+
+    // generate immediately
+    try {
+      r.blob = await qrToBlob(r.qrText);
+      r.blobUrl = URL.createObjectURL(r.blob);
+      state.generated += 1;
+    } catch(e){ /* ignore */ }
+    renderTable(); renderGrid(); updateBtnStates();
+    refreshPreview();
+    $('singleStatus').textContent = `Added & generated QR for ${name}.`;
+    // clear form
+    $('sName').value = ''; $('sEmail').value = ''; $('sF1').value = ''; $('sF2').value = '';
+  });
+
+  // -------- Render --------
+  function renderTable(){
+    const tb = $('tBody');
+    $('stTotal').textContent = state.recipients.length;
+    $('stWithEmail').textContent = state.recipients.filter(r => r.email).length;
+    $('stGenerated').textContent = state.generated;
+    if(state.recipients.length === 0){
+      tb.innerHTML = `<tr><td colspan="4" class="empty">No recipients loaded yet.</td></tr>`;
+      return;
+    }
+    tb.innerHTML = state.recipients.map((r,i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td>${escapeHtml(r.name)}</td>
+        <td>${escapeHtml(r.email || '—')}</td>
+        <td><code>${escapeHtml(r.qrText)}</code></td>
+      </tr>`).join('');
+  }
+
+  function renderGrid(){
+    const g = $('qrGrid');
+    if(state.recipients.length === 0){ g.innerHTML = ''; return; }
+    g.innerHTML = state.recipients.map((r,i) => {
+      const ready = !!r.blobUrl;
+      const filename = `${sanitizeFilename(r.name)}_QR.png`;
+      return `
+        <div class="qr-card" data-testid="qr-card-${i}" data-id="${r.id}">
+          <div class="qr-img">${ready
+            ? `<img src="${r.blobUrl}" alt="QR for ${escapeHtml(r.name)}"/>`
+            : `<span style="color:var(--muted);font-size:12px">pending</span>`}</div>
+          <div class="qr-name">${escapeHtml(r.name)}</div>
+          <div class="qr-mail">${escapeHtml(r.email || '')}</div>
+          <div class="row">
+            <a class="btn btn-ghost btn-sm" ${ready ? `href="${r.blobUrl}" download="${filename}"` : 'aria-disabled="true" style="pointer-events:none;opacity:.5"'} data-testid="dl-${i}" title="Download PNG">⬇ Download</a>
+            <button class="btn btn-ghost btn-sm" data-act="email" data-id="${r.id}" ${ready && r.email ? '' : 'disabled'} data-testid="email-${i}" title="${r.email ? 'Email QR to recipient' : 'No email on file'}">✉ Email</button>
+          </div>
+          <div class="row">
+            <button class="btn btn-ghost btn-sm" data-act="print" data-id="${r.id}" ${ready ? '' : 'disabled'} data-testid="print-${i}" title="Print this QR">🖨 Print</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function updateBtnStates(){
+    const has = state.recipients.length > 0;
+    const anyReady = state.recipients.some(r => r.blobUrl);
+    $('genBtn').disabled = !has;
+    $('zipBtn').disabled = !anyReady;
+    $('emailZipBtn').disabled = !anyReady;
+    $('printAllBtn').disabled = !anyReady;
+    $('printOneBtn').disabled = !anyReady;
+  }
+
+  // Event delegation for per-card actions
+  document.getElementById('qrGrid').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const r = state.recipients.find(x => x.id === id);
+    if(!r) return;
+    if(btn.dataset.act === 'email') return emailRecipient(r, btn);
+    if(btn.dataset.act === 'print') return printOne(r);
+  });
+
+  // -------- Generate (bulk) --------
+  $('genBtn').addEventListener('click', generateAll);
+  $('zipBtn').addEventListener('click', downloadZip);
+  $('emailZipBtn').addEventListener('click', emailZip);
+  $('printAllBtn').addEventListener('click', () => printAll('badges'));
+  $('printOneBtn').addEventListener('click', () => printAll('one'));
+
+  async function generateAll(){
+    if(state.recipients.length === 0) return;
+    hideAlert($('genAlert'));
+    $('genBtn').disabled = true; $('zipBtn').disabled = true; $('emailZipBtn').disabled = true;
+    $('prog').classList.add('show'); $('progBar').style.width = '0%';
+    revokeAllBlobs();
+
+    const total = state.recipients.length;
+    let done = 0, failed = 0;
+    for(const r of state.recipients){
+      r.qrText = buildQrText(r);
+      try{
+        r.blob = await qrToBlob(r.qrText);
+        r.blobUrl = URL.createObjectURL(r.blob);
+      } catch(err){ r.blob = null; r.blobUrl = ''; failed++; }
+      done++;
+      $('progBar').style.width = `${Math.round(done/total*100)}%`;
+      $('genStatus').textContent = `Generating ${done}/${total}…`;
+      if(done % 4 === 0 || done === total) renderGrid();
+      await new Promise(rr => setTimeout(rr,0));
+    }
+    state.generated = state.recipients.filter(r => r.blob).length;
+    renderTable(); renderGrid(); updateBtnStates();
+    $('genStatus').textContent = `Done. ${state.generated}/${total} generated${failed?`, ${failed} failed`:''}.`;
+    if(failed>0) showAlert($('genAlert'),'warn',`${failed} QR(s) failed. They'll be skipped.`);
+    else {
+      const logoNote = state.logoPlateUrl ? ' with your logo embedded' : '';
+      showAlert($('genAlert'),'ok',`All ${total} QR codes generated${logoNote}.`);
+    }
+  }
+
+  // -------- ZIP download --------
+  function dedupedFilenames(){
+    // Build map id -> filename, deduping by appending email-based suffix or _N
+    const counts = new Map();
+    for(const r of state.recipients){
+      if(!r.blob) continue;
+      const base = sanitizeFilename(r.name);
+      counts.set(base, (counts.get(base) || 0) + 1);
+    }
+    const used = new Map();
+    const out = new Map();
+    for(const r of state.recipients){
+      if(!r.blob) continue;
+      const base = sanitizeFilename(r.name);
+      let fname;
+      if((counts.get(base) || 0) > 1){
+        // use email local-part as disambiguator
+        const localpart = (r.email.split('@')[0] || '').replace(/[^a-zA-Z0-9._-]+/g,'_');
+        fname = localpart ? `${base}_${localpart}_QR.png` : `${base}_QR.png`;
+      } else {
+        fname = `${base}_QR.png`;
+      }
+      const u = (used.get(fname) || 0) + 1;
+      used.set(fname, u);
+      const final = u === 1 ? fname : fname.replace(/\.png$/, `_${u}.png`);
+      out.set(r.id, final);
+    }
+    return out;
+  }
+
+  async function buildZipBlob(){
+    const zip = new JSZip();
+    const names = dedupedFilenames();
+    for(const r of state.recipients){
+      if(!r.blob) continue;
+      zip.file(names.get(r.id), r.blob);
+    }
+    return await zip.generateAsync({ type:'blob' });
+  }
+
+  function zipFilename(){
+    const ev = sanitizeFilename($('evName').value || 'Event');
+    const yr = String($('evYear').value || '').trim();
+    return `${ev}${yr ? '_'+yr : ''}_QR_Codes.zip`;
+  }
+
+  async function downloadZip(){
+    if(state.generated === 0) return;
+    $('zipBtn').disabled = true; $('genStatus').textContent = 'Building ZIP…';
+    try{
+      const blob = await buildZipBlob();
+      const name = zipFilename();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      $('genStatus').textContent = `ZIP downloaded: ${name}`;
+    } catch(err){ showAlert($('genAlert'),'err',`Could not build ZIP: ${err.message}`); }
+    finally { updateBtnStates(); }
+  }
+
+  // -------- Email --------
+  function blobToBase64(blob){
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onloadend = () => {
+        const d = String(r.result);
+        const i = d.indexOf(',');
+        res(i >= 0 ? d.slice(i+1) : d);
+      };
+      r.onerror = () => rej(new Error('Could not encode blob'));
+      r.readAsDataURL(blob);
+    });
+  }
+
+  async function emailRecipient(r, btn){
+    if(!r.email){ showAlert($('genAlert'),'warn',`${r.name} has no email on file.`); return; }
+    if(!r.blob){ return; }
+    const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Sending…';
+    try{
+      const b64 = await blobToBase64(r.blob);
+      const res = await fetch(`${API_BASE}/api/send-qr-email`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          recipient_email: r.email,
+          recipient_name: r.name,
+          event_name: $('evName').value.trim(),
+          event_year: String($('evYear').value || '').trim(),
+          event_date: $('evDate').value.trim(),
+          event_venue: $('evVenue').value.trim(),
+          qr_text: r.qrText,
+          qr_png_base64: b64
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok) throw new Error(data.detail || (res.status === 405 ? 'Email endpoint not available. Check backend deployment.' : `HTTP ${res.status}`));
+      showAlert($('genAlert'),'ok',`Email sent to ${r.email}.`);
+      btn.textContent = '✓ Sent';
+    } catch(err){
+      showAlert($('genAlert'),'err',`Email failed: ${err.message}`);
+      btn.textContent = orig;
+    } finally {
+      btn.disabled = !r.email || !r.blob;
+      setTimeout(() => { if(btn.textContent === '✓ Sent') btn.textContent = orig; }, 4000);
+    }
+  }
+
+  async function emailZip(){
+    const org = $('orgEmail').value.trim();
+    if(!org){ showAlert($('genAlert'),'warn','Enter an organizer email in Event setup.'); return; }
+    if(state.generated === 0) return;
+    $('emailZipBtn').disabled = true; $('genStatus').textContent = 'Building ZIP & sending email…';
+    try{
+      const blob = await buildZipBlob();
+      const b64 = await blobToBase64(blob);
+      const res = await fetch(`${API_BASE}/api/send-zip-email`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          organizer_email: org,
+          event_name: $('evName').value.trim(),
+          event_year: String($('evYear').value || '').trim(),
+          recipient_count: state.generated,
+          zip_base64: b64,
+          zip_filename: zipFilename()
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      showAlert($('genAlert'),'ok',`ZIP emailed to ${org}.`);
+      $('genStatus').textContent = `ZIP emailed to ${org}.`;
+    } catch(err){
+      showAlert($('genAlert'),'err',`Email ZIP failed: ${err.message}`);
+    } finally { updateBtnStates(); }
+  }
+
+  // -------- Print --------
+  function buildPrintCard(r){
+    const ev = `${$('evName').value.trim()} ${$('evYear').value || ''}`.trim();
+    const date = $('evDate').value.trim();
+    const venue = $('evVenue').value.trim();
+    const meta = [date, venue].filter(Boolean).join(' · ');
+    return `
+      <div class="print-card">
+        <div class="pev">${escapeHtml(ev)}</div>
+        ${r.blobUrl ? `<img src="${r.blobUrl}" alt="QR"/>` : ''}
+        <div class="pn">${escapeHtml(r.name)}</div>
+        ${r.email ? `<div class="pe">${escapeHtml(r.email)}</div>` : ''}
+        ${meta ? `<div class="pe">${escapeHtml(meta)}</div>` : ''}
+        <div class="pt">${escapeHtml(r.qrText)}</div>
+      </div>`;
+  }
+
+  function printAll(layout){
+    const ready = state.recipients.filter(r => r.blobUrl);
+    if(ready.length === 0) return;
+    const cls = layout === 'one' ? 'print-grid-1' : 'print-grid-8';
+    const cards = ready.map(buildPrintCard).join('');
+    $('printSheet').innerHTML = `<div class="${cls}">${cards}</div>`;
+    setTimeout(() => window.print(), 50);
+  }
+
+  function printOne(r){
+    if(!r.blobUrl) return;
+    $('printSheet').innerHTML = `<div class="print-grid-1">${buildPrintCard(r)}</div>`;
+    setTimeout(() => window.print(), 50);
+  }
+
+  // -------- Persistence (localStorage) --------
+  const LS_KEY = 'qr-events-v1';
+  function persist(){
+    try{
+      const data = {
+        ev: { name:$('evName').value, year:$('evYear').value, date:$('evDate').value, venue:$('evVenue').value,
+              org:$('orgEmail').value, tpl:$('qrTpl').value, size:$('qrSize').value,
+              f1:$('f1Label').value, f2:$('f2Label').value },
+        recipients: state.recipients.map(r => ({
+          id:r.id, name:r.name, email:r.email, f1:r.f1, f2:r.f2, qrText:r.qrText
+        })),
+        checkins: state.checkins
+      };
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+    } catch(_){}
+  }
+  function restore(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      const ev = data.ev || {};
+      if(ev.name) $('evName').value = ev.name;
+      if(ev.year) $('evYear').value = ev.year;
+      if(ev.date) $('evDate').value = ev.date;
+      if(ev.venue) $('evVenue').value = ev.venue;
+      if(ev.org) $('orgEmail').value = ev.org;
+      if(ev.tpl) $('qrTpl').value = ev.tpl;
+      if(ev.size) $('qrSize').value = ev.size;
+      if(ev.f1) $('f1Label').value = ev.f1;
+      if(ev.f2) $('f2Label').value = ev.f2;
+      if(Array.isArray(data.recipients) && data.recipients.length){
+        state.recipients = data.recipients.map(r => ({
+          id:r.id || uid(), name:r.name||'', email:r.email||'', f1:r.f1||'', f2:r.f2||'',
+          qrText:r.qrText||'', blob:null, blobUrl:''
+        }));
+        state.recipients.forEach(r => r.qrText = buildQrText(r));
+        $('recipientsCard').style.display = 'block';
+      }
+      state.checkins = data.checkins || {};
+    } catch(_){}
+  }
+
+  // -------- Check-in --------
+  state.checkins = {};       // id -> { at: ISO, count: n }
+  state.scanning = false;
+  state.lastScanText = '';
+  state.lastScanAt = 0;
+  state.pendingScan = null;  // recipient pending confirmation
+  let scanStream = null, scanRAF = null, scanCanvas = null, scanCtx = null;
+
+  function findByQrText(text){
+    if(!text) return null;
+    const trimmed = text.trim();
+    return state.recipients.find(r => (r.qrText || '').trim() === trimmed) || null;
+  }
+
+  function refreshCheckinStats(){
+    const total = state.recipients.length;
+    const ins = Object.keys(state.checkins).length;
+    const pending = total - ins;
+    let people = 0;
+    for(const id in state.checkins) people += (state.checkins[id].count || 1);
+    $('ciTotal').textContent = total;
+    $('ciIn').textContent = ins;
+    $('ciPending').textContent = Math.max(0, pending);
+    $('ciPeople').textContent = people;
+  }
+
+  function renderCheckinTable(){
+    const tb = $('ciTbody');
+    const list = state.recipients
+      .filter(r => state.checkins[r.id])
+      .map(r => ({...r, ...state.checkins[r.id]}))
+      .sort((a,b) => (b.at || '').localeCompare(a.at || ''));
+    if(list.length === 0){
+      tb.innerHTML = `<tr><td colspan="5" class="empty">No activity yet.</td></tr>`;
+      return;
+    }
+    tb.innerHTML = list.map(c => `
+      <tr>
+        <td>${escapeHtml(formatTime(c.at))}</td>
+        <td>${escapeHtml(c.name)}</td>
+        <td>${escapeHtml(c.email || '—')}</td>
+        <td>${c.count || 1}</td>
+        <td><span class="badge-ok">Checked in</span></td>
+      </tr>`).join('');
+  }
+  function formatTime(iso){
+    if(!iso) return '—';
+    try{ return new Date(iso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}); }
+    catch(_){ return iso; }
+  }
+
+  // Camera scanner using jsQR
+  async function startScanner(){
+    if(state.scanning) return;
+    const video = $('scanVideo');
+    try{
+      scanStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }, audio:false
+      });
+      video.srcObject = scanStream;
+      await video.play();
+      $('scanEmpty').classList.add('hide');
+      state.scanning = true;
+      $('scanStart').disabled = true;
+      $('scanStop').disabled = false;
+      $('scanStatus').textContent = 'Scanning…';
+      scanCanvas = document.createElement('canvas');
+      scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+      scanLoop();
+    } catch(err){
+      $('scanStatus').textContent = `Camera error: ${err.message}`;
+      showAlert($('ciAlert'), 'err', `Cannot access camera: ${err.message}`);
+    }
+  }
+
+  function scanLoop(){
+    if(!state.scanning) return;
+    const video = $('scanVideo');
+    if(video.readyState === video.HAVE_ENOUGH_DATA){
+      const w = video.videoWidth, h = video.videoHeight;
+      if(w && h){
+        scanCanvas.width = w; scanCanvas.height = h;
+        scanCtx.drawImage(video, 0, 0, w, h);
+        try{
+          const imgData = scanCtx.getImageData(0, 0, w, h);
+          const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts:'attemptBoth' });
+          if(code && code.data){
+            handleScan(code.data);
+          }
+        } catch(_){}
+      }
+    }
+    scanRAF = requestAnimationFrame(scanLoop);
+  }
+
+  function stopScanner(){
+    state.scanning = false;
+    if(scanRAF) cancelAnimationFrame(scanRAF);
+    if(scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+    $('scanVideo').srcObject = null;
+    $('scanEmpty').classList.remove('hide');
+    $('scanStart').disabled = false;
+    $('scanStop').disabled = true;
+    $('scanStatus').textContent = 'Stopped';
+  }
+
+  function handleScan(text){
+    const now = Date.now();
+    // debounce same text within 2s
+    if(text === state.lastScanText && now - state.lastScanAt < 2000) return;
+    state.lastScanText = text; state.lastScanAt = now;
+    openCheckinModal(text);
+  }
+
+  function openCheckinModal(text){
+    const recipient = findByQrText(text);
+    const card = document.querySelector('#ciModal .modal-card');
+    card.classList.remove('ok','warn','err');
+    state.pendingScan = null;
+
+    if(!recipient){
+      card.classList.add('err');
+      $('modalEmoji').textContent = '❌';
+      $('modalEyebrow').textContent = 'Not found';
+      $('modalTitle').textContent = 'No matching recipient';
+      $('modalSub').textContent = text;
+      $('modalBody').style.display = 'none';
+      $('cConfirm').style.display = 'none';
+      $('cCancel').textContent = 'Close';
+    } else if(state.checkins[recipient.id]){
+      card.classList.add('warn');
+      const c = state.checkins[recipient.id];
+      $('modalEmoji').textContent = '⚠️';
+      $('modalEyebrow').textContent = 'Already checked in';
+      $('modalTitle').textContent = recipient.name;
+      $('modalSub').textContent = `${c.count} ${c.count === 1 ? 'person' : 'people'} · ${formatTime(c.at)}`;
+      $('modalBody').style.display = 'none';
+      $('cConfirm').style.display = 'none';
+      $('cCancel').textContent = 'Close';
+    } else {
+      card.classList.add('ok');
+      state.pendingScan = recipient;
+      $('modalEmoji').textContent = '👋';
+      $('modalEyebrow').textContent = 'Welcome';
+      $('modalTitle').textContent = recipient.name;
+      $('modalSub').textContent = recipient.email || recipient.qrText;
+      $('modalBody').style.display = '';
+      $('cCount').value = '1';
+      $('cConfirm').style.display = '';
+      $('cCancel').textContent = 'Cancel';
+    }
+    $('ciModal').classList.add('show');
+  }
+  function closeCheckinModal(){
+    $('ciModal').classList.remove('show');
+    state.pendingScan = null;
+  }
+  $('cCancel').addEventListener('click', closeCheckinModal);
+  $('ciModal').addEventListener('click', (e) => { if(e.target.id === 'ciModal') closeCheckinModal(); });
+  $('cMinus').addEventListener('click', () => { const v = Math.max(1, (parseInt($('cCount').value,10)||1) - 1); $('cCount').value = v; });
+  $('cPlus').addEventListener('click', () => { const v = Math.max(1, (parseInt($('cCount').value,10)||1) + 1); $('cCount').value = v; });
+  $('cConfirm').addEventListener('click', () => {
+    if(!state.pendingScan) return;
+    const r = state.pendingScan;
+    const count = Math.max(1, parseInt($('cCount').value, 10) || 1);
+    state.checkins[r.id] = { at: new Date().toISOString(), count };
+    persist();
+    refreshCheckinStats();
+    renderCheckinTable();
+    closeCheckinModal();
+  });
+
+  $('scanStart').addEventListener('click', startScanner);
+  $('scanStop').addEventListener('click', stopScanner);
+  $('manualScanBtn').addEventListener('click', () => {
+    const t = $('manualScan').value.trim();
+    if(!t) return;
+    handleScan(t);
+    $('manualScan').value = '';
+  });
+  $('manualScan').addEventListener('keydown', (e) => { if(e.key === 'Enter') $('manualScanBtn').click(); });
+
+  $('exportCsvBtn').addEventListener('click', () => {
+    const rows = [['Name','Email','QR text','Checked in at','People count','Status']];
+    for(const r of state.recipients){
+      const c = state.checkins[r.id];
+      rows.push([
+        r.name || '',
+        r.email || '',
+        r.qrText || '',
+        c ? c.at : '',
+        c ? (c.count || 1) : '',
+        c ? 'Checked in' : 'Pending'
+      ]);
+    }
+    const csv = rows.map(row => row.map(cellCsv).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ev = sanitizeFilename($('evName').value || 'Event');
+    const yr = String($('evYear').value || '').trim();
+    a.href = url; a.download = `${ev}${yr?'_'+yr:''}_attendance.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  });
+  function cellCsv(s){
+    const v = String(s ?? '');
+    if(/[",\n]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
+    return v;
+  }
+
+  $('resetCheckinsBtn').addEventListener('click', () => {
+    if(!confirm('Reset all check-ins? This cannot be undone.')) return;
+    state.checkins = {};
+    persist();
+    refreshCheckinStats();
+    renderCheckinTable();
+  });
+
+  // Persist on changes (debounced)
+  let persistTimer;
+  function schedulePersist(){
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persist();
+      // Auto re-sync to cloud if connected
+      if(state.eventCode){
+        cloudAutoSync();
+      }
+    }, 350);
+  }
+
+  let cloudAutoTimer;
+  function cloudAutoSync(){
+    clearTimeout(cloudAutoTimer);
+    cloudAutoTimer = setTimeout(async () => {
+      if(!state.eventCode) return;
+      try{
+        await fetch(`/api/events/${state.eventCode}/recipients/bulk`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ recipients: recipientsForCloud(), replace: true })
+        });
+        // also update event meta
+        await fetch(`/api/events/${state.eventCode}`, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(evMetaForCloud())
+        });
+      } catch(_){}
+    }, 600);
+  }
+  ['evName','evYear','evDate','evVenue','orgEmail','qrTpl','qrSize','f1Label','f2Label']
+    .forEach(id => $(id).addEventListener('input', schedulePersist));
+
+  // Hook persistence into existing flows by wrapping renderTable
+  const _renderTable = renderTable;
+  renderTable = function(){ _renderTable(); refreshCheckinStats(); renderCheckinTable(); schedulePersist(); };
+
+  // Stop camera when leaving check-in tab
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    if(t.dataset.tab !== 'checkin' && state.scanning) stopScanner();
+  }));
+
+  // -------- Cloud sync --------
+  state.eventCode = null;
+  state.cloudSyncTimer = null;
+
+  function evMetaForCloud(){
+    return {
+      name: $('evName').value.trim() || 'Event',
+      year: String($('evYear').value || '').trim(),
+      date: $('evDate').value.trim(),
+      venue: $('evVenue').value.trim(),
+      organizer_email: $('orgEmail').value.trim(),
+      qr_template: $('qrTpl').value.trim() || '{event_name} {year} - {name}',
+      qr_size: parseInt($('qrSize').value || '320', 10),
+      f1_label: $('f1Label').value.trim(),
+      f2_label: $('f2Label').value.trim()
+    };
+  }
+
+  function recipientsForCloud(){
+    return state.recipients.map(r => ({
+      recipient_id: r.id,
+      name: r.name || '',
+      email: r.email || '',
+      f1: r.f1 || '', f2: r.f2 || '',
+      qr_text: buildQrText(r)
+    }));
+  }
+
+  function setCloudUI(connected, code){
+    const status = $('cloudStatus');
+    if(connected && code){
+      status.classList.add('connected');
+      $('cloudText').innerHTML = `<b>Saved to cloud</b> · code <span class="code-pill" data-testid="event-code">${code}</span> <button class="copy-btn" data-testid="copy-code-btn" id="copyCodeBtn">Copy</button>`;
+      $('cloudSaveBtn').textContent = 'Update cloud event';
+      $('cloudSyncBtn').disabled = false;
+      $('cloudDisconnectBtn').disabled = false;
+      $('shareRow').style.display = 'flex';
+      $('shareScan').href = `/scan.html?event=${encodeURIComponent(code)}`;
+      $('shareDash').href = `/dashboard.html?event=${encodeURIComponent(code)}`;
+      // attach copy handler
+      const cb = document.getElementById('copyCodeBtn');
+      if(cb) cb.addEventListener('click', () => {
+        navigator.clipboard.writeText(code).then(() => {
+          cb.textContent = 'Copied'; setTimeout(() => cb.textContent = 'Copy', 1500);
+        });
+      });
+    } else {
+      status.classList.remove('connected');
+      $('cloudText').innerHTML = `<b>Local only</b> — recipients are saved in this browser. Save to cloud to enable scanner &amp; dashboard.`;
+      $('cloudSaveBtn').textContent = 'Save event to cloud';
+      $('cloudSyncBtn').disabled = true;
+      $('cloudDisconnectBtn').disabled = true;
+      $('shareRow').style.display = 'none';
+    }
+  }
+
+  async function cloudSaveEvent(){
+    hideAlert($('cloudAlert'));
+    if(state.recipients.length === 0){
+      showAlert($('cloudAlert'),'warn','Add at least one recipient before saving to cloud.');
+      return;
+    }
+    try{
+      let code = state.eventCode;
+      if(!code){
+        const r = await fetch('/api/events', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(evMetaForCloud())
+        });
+        const j = await r.json().catch(() => ({}));
+        if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+        code = j.event_code;
+      } else {
+        // update meta
+        const r = await fetch(`/api/events/${code}`, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(evMetaForCloud())
+        });
+        if(!r.ok){ const j = await r.json().catch(()=>({})); throw new Error(j.detail || `HTTP ${r.status}`); }
+      }
+      // bulk recipients
+      const r2 = await fetch(`/api/events/${code}/recipients/bulk`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ recipients: recipientsForCloud(), replace: true })
+      });
+      const j2 = await r2.json();
+      if(!r2.ok) throw new Error(j2.detail || `HTTP ${r2.status}`);
+      state.eventCode = code;
+      localStorage.setItem('qr-events-last-code', code);
+      setCloudUI(true, code);
+      showAlert($('cloudAlert'),'ok',`Saved ${j2.count} recipients to cloud (event ${code}).`);
+      schedulePersist();
+    } catch(e){
+      showAlert($('cloudAlert'),'err',`Cloud save failed: ${e.message}`);
+    }
+  }
+
+  async function cloudSync(){
+    if(!state.eventCode) return;
+    try{
+      // also update event meta first
+      await fetch(`/api/events/${state.eventCode}`, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(evMetaForCloud())
+      });
+      const r = await fetch(`/api/events/${state.eventCode}/recipients/bulk`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ recipients: recipientsForCloud(), replace: true })
+      });
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      showAlert($('cloudAlert'),'ok',`Re-synced ${j.count} recipients.`);
+    } catch(e){
+      showAlert($('cloudAlert'),'err',`Sync failed: ${e.message}`);
+    }
+  }
+
+  async function cloudLoad(rawCode){
+    const code = (rawCode || '').trim().toUpperCase();
+    if(!code){ showAlert($('cloudAlert'),'warn','Enter an event code first.'); return; }
+    hideAlert($('cloudAlert'));
+    try{
+      const r = await fetch(`/api/events/${encodeURIComponent(code)}`);
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      // populate setup
+      const ev = j.event;
+      $('evName').value = ev.name || '';
+      $('evYear').value = ev.year || '';
+      $('evDate').value = ev.date || '';
+      $('evVenue').value = ev.venue || '';
+      $('orgEmail').value = ev.organizer_email || '';
+      $('qrTpl').value = ev.qr_template || '{event_name} {year} - {name}';
+      $('qrSize').value = ev.qr_size || 320;
+      $('f1Label').value = ev.f1_label || '';
+      $('f2Label').value = ev.f2_label || '';
+      // load recipients
+      const r2 = await fetch(`/api/events/${encodeURIComponent(code)}/recipients`);
+      const j2 = await r2.json();
+      revokeAllBlobs();
+      state.recipients = (j2.recipients || []).map(r => ({
+        id: r.recipient_id, name: r.name||'', email: r.email||'',
+        f1: r.f1||'', f2: r.f2||'', qrText: r.qr_text||'',
+        blob:null, blobUrl:''
+      }));
+      state.recipients.forEach(r => r.qrText = buildQrText(r));
+      state.generated = 0;
+      $('recipientsCard').style.display = 'block';
+      renderTable(); renderGrid(); updateBtnStates();
+      state.eventCode = code;
+      localStorage.setItem('qr-events-last-code', code);
+      setCloudUI(true, code);
+      refreshPreview();
+      showAlert($('cloudAlert'),'ok',`Loaded event ${code} with ${state.recipients.length} recipient(s). Click "Generate QR codes" to render PNGs.`);
+    } catch(e){
+      showAlert($('cloudAlert'),'err',`Load failed: ${e.message}`);
+    }
+  }
+
+  function cloudDisconnect(){
+    state.eventCode = null;
+    localStorage.removeItem('qr-events-last-code');
+    setCloudUI(false, null);
+    showAlert($('cloudAlert'),'ok','Disconnected from cloud event. Local recipients kept.');
+  }
+
+  $('cloudSaveBtn').addEventListener('click', cloudSaveEvent);
+  $('cloudSyncBtn').addEventListener('click', cloudSync);
+  $('cloudLoadBtn').addEventListener('click', () => cloudLoad($('loadCodeInput').value));
+  $('loadCodeInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') $('cloudLoadBtn').click(); });
+  $('cloudDisconnectBtn').addEventListener('click', cloudDisconnect);
+
+  // -------- Init --------
+  restore();
+  refreshPreview();
+  if(state.recipients.length){ renderTable(); renderGrid(); updateBtnStates(); }
+  refreshCheckinStats(); renderCheckinTable();
+  // Auto-load last cloud event code if any (read-only — does not auto-sync)
+  const savedCode = localStorage.getItem('qr-events-last-code');
+  if(savedCode){
+    state.eventCode = savedCode;
+    setCloudUI(true, savedCode);
+  }
+})();
+</script>
+</body>
+</html>

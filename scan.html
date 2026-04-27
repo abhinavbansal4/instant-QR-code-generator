@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QR Check-in Scanner</title>
+<style>
+  :root{
+    --bg:#0c0a06; --panel:#16130c; --panel-2:#1d1a11; --border:#2b2618;
+    --text:#f1ede2; --muted:#a39e8c;
+    --accent:#fb923c; --accent-2:#f97316; --accent-3:#fbbf24;
+    --ok:#4ade80; --ok-soft:#0e2c1a; --warn:#fbbf24; --warn-soft:#2a200c; --err:#f87171; --err-soft:#2a1010;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+    radial-gradient(900px 700px at 12% -10%,rgba(245,158,11,.18),transparent 60%),
+    radial-gradient(800px 700px at 95% 10%,rgba(234,88,12,.18),transparent 60%),
+    radial-gradient(900px 700px at 50% 110%,rgba(194,65,12,.18),transparent 60%);pointer-events:none}
+  .wrap{max-width:980px;margin:0 auto;padding:22px 18px 60px}
+  header.top{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .logo{width:44px;height:44px;border-radius:12px;background:conic-gradient(from 220deg,#f59e0b,#ea580c,#c2410c,#f59e0b);display:grid;place-items:center;color:#fff;font-weight:800;letter-spacing:.5px}
+  h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .links{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .link{color:var(--accent);text-decoration:none;font-size:13px;font-weight:600;padding:6px 10px;border:1px solid var(--border);border-radius:8px}
+  .link:hover{border-color:var(--accent)}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+  label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+  input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel-2);color:var(--text);font:inherit;font-size:14px}
+  input:focus{outline:none;border-color:var(--accent)}
+  .btn{appearance:none;border:1px solid transparent;border-radius:10px;cursor:pointer;padding:10px 16px;font:inherit;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:8px}
+  .btn-primary{background:linear-gradient(180deg,var(--accent-2),#c2410c);color:#fff}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn-primary:disabled{background:var(--border);color:var(--muted);cursor:not-allowed}
+  .btn-ghost{background:var(--panel-2);color:var(--text);border-color:var(--border)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-ghost:disabled{opacity:.5;cursor:not-allowed}
+  .btn-sm{padding:7px 11px;font-size:12px}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .hint{color:var(--muted);font-size:12px}
+  code{background:var(--panel-2);padding:2px 6px;border-radius:5px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  @media (max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .stat .num{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
+  .stat.ok{background:var(--ok-soft);border-color:rgba(74,222,128,.3)} .stat.ok .num{color:var(--ok)}
+  .stat.warn{background:var(--warn-soft);border-color:rgba(251,191,36,.3)} .stat.warn .num{color:var(--warn)}
+
+  .ci-row{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+  @media (max-width:760px){.ci-row{grid-template-columns:1fr}}
+  .scan-frame{position:relative;width:100%;aspect-ratio:1/1;max-height:480px;border-radius:14px;overflow:hidden;background:#0a0905;border:1px solid var(--border)}
+  .scan-frame video{width:100%;height:100%;object-fit:cover;display:block}
+  .scan-empty{position:absolute;inset:0;display:grid;place-items:center;color:#a39a85;gap:10px;text-align:center;font-size:13px;background:repeating-linear-gradient(45deg,rgba(255,255,255,.025) 0 8px,transparent 8px 18px),#0a0905}
+  .scan-empty.hide{display:none}
+  .scan-corners{position:absolute;inset:14%;background:
+    linear-gradient(#fff,#fff) left top   /28px 4px no-repeat,
+    linear-gradient(#fff,#fff) left top   /4px 28px no-repeat,
+    linear-gradient(#fff,#fff) right top  /28px 4px no-repeat,
+    linear-gradient(#fff,#fff) right top  /4px 28px no-repeat,
+    linear-gradient(#fff,#fff) left bottom /28px 4px no-repeat,
+    linear-gradient(#fff,#fff) left bottom /4px 28px no-repeat,
+    linear-gradient(#fff,#fff) right bottom /28px 4px no-repeat,
+    linear-gradient(#fff,#fff) right bottom /4px 28px no-repeat;opacity:.55;pointer-events:none}
+  .scan-line{position:absolute;left:14%;right:14%;top:14%;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);box-shadow:0 0 12px rgba(251,146,60,.7);pointer-events:none;animation:scanmove 2.4s ease-in-out infinite alternate}
+  @keyframes scanmove{from{transform:translateY(0)}to{transform:translateY(min(72%,300px))}}
+
+  .alert{border-radius:10px;padding:11px 14px;font-size:13px;margin-top:12px;border:1px solid transparent;display:none}
+  .alert.show{display:block}
+  .alert.ok{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+  .alert.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+  .alert.err{background:var(--err-soft);color:var(--err);border-color:var(--err)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;background:var(--panel-2)}
+  .table-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:300px;overflow-y:auto;background:var(--panel)}
+  .empty{padding:24px;text-align:center;color:var(--muted)}
+  .badge-ok{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--ok-soft);color:var(--ok);font-size:11px;font-weight:700}
+
+  /* Modal */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:100;padding:20px}
+  .modal.show{display:flex}
+  .modal-card{width:min(460px,100%);background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:22px;animation:modalIn .15s ease-out}
+  @keyframes modalIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;gap:14px;align-items:center;margin-bottom:14px}
+  .modal-emoji{width:54px;height:54px;border-radius:14px;background:rgba(251,146,60,.18);display:grid;place-items:center;font-size:26px;flex-shrink:0}
+  .modal-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+  .modal-title{font-size:22px;font-weight:800;margin-top:2px}
+  .modal-sub{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-all}
+  .modal-card.ok .modal-emoji{background:var(--ok-soft)} .modal-card.ok .modal-eyebrow{color:var(--ok)}
+  .modal-card.warn .modal-emoji{background:var(--warn-soft)} .modal-card.warn .modal-eyebrow{color:var(--warn)}
+  .modal-card.err .modal-emoji{background:var(--err-soft)} .modal-card.err .modal-eyebrow{color:var(--err)}
+  .counter{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .cbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);font-size:18px;font-weight:700;cursor:pointer;color:var(--text)}
+  .cbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .counter input{width:70px;text-align:center;font-weight:700;font-size:16px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+
+  .topnav{display:flex;align-items:center;gap:8px;padding:10px 16px;margin-bottom:24px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:16px;backdrop-filter:blur(12px);}
+  .nav-logo{font-weight:900;font-size:15px;color:#fff;text-decoration:none;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#f97316,#c2410c);display:grid;place-items:center;flex-shrink:0;margin-right:4px;}
+  .nav-links{display:flex;gap:4px;align-items:center;flex:1;flex-wrap:wrap}
+  .nav-link{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;color:rgba(255,255,255,.55);border:1px solid transparent;transition:all .15s;white-space:nowrap;}
+  .nav-link svg{width:15px;height:15px;flex-shrink:0}
+  .nav-link:hover{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.15)}
+  .nav-link.active{background:rgba(251,146,60,.18);color:#fb923c;border-color:rgba(251,146,60,.25)}
+  @media(max-width:600px){.nav-link span{display:none}.nav-link{padding:8px}.nav-link svg{width:18px;height:18px}}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="nav-logo" href="/">QR</a>
+  <div class="nav-links">
+    <a href="/" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Generator</span></a>
+    <a href="/scan.html" class="nav-link active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg><span>Scanner</span></a>
+    <a href="/dashboard.html" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="3" y="12" width="7" height="9" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/></svg><span>Dashboard</span></a>
+    <a href="/checkin.html" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg><span>Self Check-in</span></a>
+  </div>
+</nav>
+<div class="wrap">
+  <header class="top">
+    <div class="logo">QR</div>
+    <div>
+      <h1>Check-in scanner</h1>
+      <div class="sub" id="evHeader">Connect to an event to start scanning.</div>
+    </div>
+    <div class="links">
+      <a class="link" href="/" data-testid="link-generator">Generator</a>
+      <a class="link" href="/dashboard.html" id="dashLink" data-testid="link-dashboard">Dashboard</a>
+    </div>
+  </header>
+
+  <!-- Connect card -->
+  <section class="card" id="connectCard">
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <label for="evCode">Event code</label>
+        <input id="evCode" type="text" placeholder="e.g. A4F9-X7K2" data-testid="event-code-input"/>
+      </div>
+      <button class="btn btn-primary" id="connectBtn" type="button" data-testid="connect-btn">Connect</button>
+    </div>
+    <div class="hint" style="margin-top:8px">Get the code from the Generator page after saving an event to cloud.</div>
+    <div class="alert" id="connectAlert"></div>
+  </section>
+
+  <!-- Stats + Scanner (hidden until connected) -->
+  <section id="liveSection" style="display:none">
+    <div class="stats">
+      <div class="stat"><div class="num" id="stTotal" data-testid="stat-total">0</div><div class="lbl">Total recipients</div></div>
+      <div class="stat ok"><div class="num" id="stIn" data-testid="stat-in">0</div><div class="lbl">Checked in</div></div>
+      <div class="stat warn"><div class="num" id="stPending" data-testid="stat-pending">0</div><div class="lbl">Pending</div></div>
+      <div class="stat"><div class="num" id="stPeople" data-testid="stat-people">0</div><div class="lbl">Total people</div></div>
+    </div>
+
+    <div class="card">
+      <div class="ci-row">
+        <div>
+          <div class="scan-frame">
+            <video id="video" playsinline muted autoplay></video>
+            <div class="scan-corners"></div>
+            <div class="scan-line"></div>
+            <div class="scan-empty" id="scanEmpty">
+              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M21 7V5a2 2 0 0 0-2-2h-2"/>
+                <path d="M3 17v2a2 2 0 0 0 2 2h2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+                <rect x="7" y="7" width="10" height="10" rx="1"/>
+              </svg>
+              <div>Camera off</div>
+            </div>
+          </div>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn btn-primary" id="startBtn" type="button" data-testid="scan-start-btn">Start camera</button>
+            <button class="btn btn-ghost" id="stopBtn" type="button" disabled data-testid="scan-stop-btn">Stop</button>
+            <span class="hint" id="scanStatus"></span>
+          </div>
+        </div>
+
+        <div>
+          <label for="manualScan">Manual entry</label>
+          <input id="manualScan" type="text" placeholder="Paste QR text here" data-testid="manual-scan-input"/>
+          <button class="btn btn-ghost btn-sm" id="manualBtn" type="button" style="margin-top:6px" data-testid="manual-scan-btn">Look up</button>
+
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" id="walkInBtn" type="button" data-testid="walkin-btn" style="background:linear-gradient(180deg,#fbbf24,#f97316);color:#1a1a1a">＋ Add walk-in</button>
+            <button class="btn btn-ghost btn-sm" id="posterBtn" type="button" data-testid="poster-btn">🪧 Print self-check-in poster</button>
+            <button class="btn btn-ghost btn-sm" id="csvBtn" type="button" data-testid="export-csv-btn">Export attendance CSV</button>
+            <button class="btn btn-ghost btn-sm" id="resetBtn" type="button" data-testid="reset-btn">Reset all check-ins</button>
+            <button class="btn btn-ghost btn-sm" id="disconnectBtn" type="button" data-testid="disconnect-btn">Disconnect</button>
+          </div>
+          <div class="hint" style="margin-top:10px">All scans go to the server. Multiple devices can scan the same event simultaneously without duplicates.</div>
+        </div>
+      </div>
+
+      <div class="alert" id="liveAlert"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px;font-size:13px;letter-spacing:.05em;color:var(--muted);text-transform:uppercase">Recent check-ins</h3>
+      <div class="table-wrap" style="max-height:340px">
+        <table>
+          <thead><tr><th>Time</th><th>Name</th><th>Email</th><th style="width:80px">People</th><th style="width:100px">Status</th></tr></thead>
+          <tbody id="logBody" data-testid="log-tbody">
+            <tr><td colspan="5" class="empty">No activity yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Confirm modal -->
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="modal-card" id="modalCard" data-testid="checkin-modal">
+    <div class="modal-head">
+      <div class="modal-emoji" id="mEmoji">👋</div>
+      <div>
+        <div class="modal-eyebrow" id="mEyebrow">Found</div>
+        <div class="modal-title" id="mTitle">—</div>
+        <div class="modal-sub" id="mSub">—</div>
+      </div>
+    </div>
+    <div id="mBody">
+      <label>People in this group</label>
+      <div class="counter">
+        <button class="cbtn" id="cMinus" type="button" data-testid="people-minus">−</button>
+        <input id="cCount" type="number" min="1" value="1" data-testid="people-count"/>
+        <button class="cbtn" id="cPlus" type="button" data-testid="people-plus">+</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="mCancel" type="button" data-testid="checkin-cancel">Cancel</button>
+      <button class="btn btn-primary" id="mConfirm" type="button" data-testid="checkin-confirm">Confirm check-in</button>
+    </div>
+  </div>
+</div>
+
+<!-- Walk-in modal -->
+<div class="modal" id="walkModal" role="dialog" aria-modal="true">
+  <div class="modal-card" data-testid="walkin-modal" style="max-width:520px">
+    <div class="modal-head">
+      <div class="modal-emoji" style="background:rgba(251,191,36,.18);color:var(--accent-3)">＋</div>
+      <div>
+        <div class="modal-eyebrow" style="color:var(--accent-3)">Walk-in</div>
+        <div class="modal-title">Register &amp; check-in</div>
+        <div class="modal-sub">For attendees who arrived without pre-registration.</div>
+      </div>
+    </div>
+    <div style="display:grid;gap:10px">
+      <div>
+        <label for="wName">Name *</label>
+        <input id="wName" type="text" placeholder="Full name" data-testid="walkin-name-input"/>
+      </div>
+      <div>
+        <label for="wEmail">Email <span style="text-transform:none;color:var(--muted);font-weight:400">(optional)</span></label>
+        <input id="wEmail" type="text" placeholder="someone@example.com" data-testid="walkin-email-input"/>
+      </div>
+      <div>
+        <label>People in this group</label>
+        <div class="counter">
+          <button class="cbtn" id="wMinus" type="button" data-testid="walkin-people-minus">−</button>
+          <input id="wCount" type="number" min="1" value="1" data-testid="walkin-people-count"/>
+          <button class="cbtn" id="wPlus" type="button" data-testid="walkin-people-plus">+</button>
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:500;color:var(--text);text-transform:none;letter-spacing:0;font-size:13px;margin-top:4px;cursor:pointer">
+        <input type="checkbox" id="wEmailPass" checked data-testid="walkin-email-pass" style="width:auto;accent-color:var(--accent)"/>
+        <span>Email a QR pass to this person (if email provided)</span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="wCancel" type="button" data-testid="walkin-cancel">Cancel</button>
+      <button class="btn btn-primary" id="wConfirm" type="button" data-testid="walkin-submit">Check in &amp; (optionally) email</button>
+    </div>
+    <div class="alert" id="wAlert"></div>
+  </div>
+</div>
+
+<!-- Walk-in success modal -->
+<div class="modal" id="walkSuccessModal" role="dialog" aria-modal="true">
+  <div class="modal-card ok" style="max-width:420px;text-align:center">
+    <div class="modal-emoji" style="margin:0 auto 12px">✅</div>
+    <div class="modal-eyebrow">Walk-in checked in</div>
+    <div class="modal-title" id="wsTitle">—</div>
+    <div class="modal-sub" id="wsSub" style="margin:6px 0 14px">—</div>
+    <div id="wsQr" style="display:flex;justify-content:center;margin-bottom:12px"></div>
+    <div id="wsMail" class="hint" style="text-align:center"></div>
+    <div class="modal-actions" style="justify-content:center">
+      <button class="btn btn-primary" id="wsClose" type="button" data-testid="walkin-success-close">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Print poster sheet (visible only when printing) -->
+<div id="posterSheet" style="display:none">
+  <style>
+    @media print{
+      @page{margin:10mm;size:A4 portrait}
+      body > *:not(#posterSheet){display:none !important}
+      #posterSheet{display:block !important;background:#fff;color:#000}
+      .poster{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:calc(100vh - 20mm);page-break-inside:avoid;font-family:ui-sans-serif,Arial,sans-serif}
+      .poster .eyebrow{font-size:14px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#c2410c;margin-bottom:10px}
+      .poster h1{font-size:48px;font-weight:900;letter-spacing:-.02em;line-height:1.05;margin:0 0 8px}
+      .poster .meta{font-size:18px;color:#555;margin-bottom:24px}
+      .poster .qrbox{padding:20px;border:1px solid #ddd;border-radius:18px;background:#fff}
+      .poster .qrbox canvas{display:block}
+      .poster .cap{margin-top:22px;font-size:18px;font-weight:700;color:#111}
+      .poster .url{margin-top:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:#666;word-break:break-all;max-width:600px}
+      .poster .code{margin-top:14px;font-size:32px;font-weight:900;letter-spacing:.08em;color:#7c2d12}
+      .poster .step{margin-top:24px;text-align:left;max-width:520px;font-size:15px;color:#333;line-height:1.6}
+      .poster .step b{color:#000}
+    }
+  </style>
+  <div class="poster">
+    <div class="eyebrow">Welcome — please check in</div>
+    <h1 id="posterTitle">—</h1>
+    <div class="meta" id="posterMeta">—</div>
+    <div class="qrbox"><div id="posterQr"></div></div>
+    <div class="cap">📱 Open camera · scan this QR · check yourself in</div>
+    <div class="url" id="posterUrl">—</div>
+    <div class="code" id="posterCode">—</div>
+    <div class="step">
+      <b>How it works:</b><br/>
+      1. Point your phone camera at the QR above.<br/>
+      2. Tap the link that pops up — it opens the self check-in page.<br/>
+      3. Scan your personal QR (or find yourself by email/name) and confirm.<br/>
+      Need help? Ask a staff member.
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const LS_KEY = 'qr-events-scan-code';
+
+  const state = {
+    code: null,
+    recipients: [],     // [{recipient_id, name, email, qr_text, ...}]
+    checkinsById: {},   // recipient_id -> checkin
+    pending: null,
+    scanning: false,
+    lastScanText: '',
+    lastScanAt: 0,
+    statsTimer: null,
+    logTimer: null
+  };
+  let stream = null, raf = null, canvas = null, ctx = null;
+
+  // -------- URL & saved code --------
+  const params = new URLSearchParams(location.search);
+  const initialCode = (params.get('event') || localStorage.getItem(LS_KEY) || '').toUpperCase();
+  if(initialCode) $('evCode').value = initialCode;
+
+  $('connectBtn').addEventListener('click', () => connect($('evCode').value.trim().toUpperCase()));
+  $('disconnectBtn').addEventListener('click', disconnect);
+  $('evCode').addEventListener('keydown', (e) => { if(e.key === 'Enter') $('connectBtn').click(); });
+
+  function showAlert(el, kind, msg){ el.className = `alert show ${kind}`; el.textContent = msg; }
+  function hideAlert(el){ el.className = 'alert'; el.textContent = ''; }
+
+  async function connect(code){
+    if(!code){ showAlert($('connectAlert'),'err','Enter an event code.'); return; }
+    hideAlert($('connectAlert'));
+    try{
+      const r = await fetch(`/api/events/${encodeURIComponent(code)}`);
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      state.code = code;
+      state.event = j.event;
+      localStorage.setItem(LS_KEY, code);
+      // update URL without reload
+      const url = new URL(location.href); url.searchParams.set('event', code); history.replaceState({}, '', url);
+      $('evHeader').textContent = `${j.event.name || 'Event'} ${j.event.year || ''} · ${code}`;
+      $('dashLink').href = `/dashboard.html?event=${encodeURIComponent(code)}`;
+      $('connectCard').style.display = 'none';
+      $('liveSection').style.display = 'block';
+      await loadRecipients();
+      await loadCheckins();
+      startPolling();
+    } catch(e){
+      showAlert($('connectAlert'),'err',`Could not connect: ${e.message}`);
+    }
+  }
+
+  function disconnect(){
+    stopScanner();
+    stopPolling();
+    state.code = null;
+    state.recipients = [];
+    state.checkinsById = {};
+    $('liveSection').style.display = 'none';
+    $('connectCard').style.display = 'block';
+    $('evHeader').textContent = 'Connect to an event to start scanning.';
+  }
+
+  async function loadRecipients(){
+    const r = await fetch(`/api/events/${state.code}/recipients`);
+    const j = await r.json();
+    state.recipients = j.recipients || [];
+  }
+
+  async function loadCheckins(){
+    const r = await fetch(`/api/events/${state.code}/checkins?limit=50`);
+    const j = await r.json();
+    state.checkinsById = {};
+    for(const c of (j.checkins || [])) state.checkinsById[c.recipient_id] = c;
+    renderLog(j.checkins || []);
+  }
+
+  async function refreshStats(){
+    if(!state.code) return;
+    try{
+      const r = await fetch(`/api/events/${state.code}/stats`);
+      const j = await r.json();
+      $('stTotal').textContent = j.total || 0;
+      $('stIn').textContent = j.checked_in || 0;
+      $('stPending').textContent = j.pending || 0;
+      $('stPeople').textContent = j.people || 0;
+    } catch(_){}
+  }
+
+  function startPolling(){
+    stopPolling();
+    refreshStats();
+    state.statsTimer = setInterval(refreshStats, 2500);
+    state.logTimer = setInterval(loadCheckins, 4000);
+  }
+  function stopPolling(){
+    if(state.statsTimer){ clearInterval(state.statsTimer); state.statsTimer = null; }
+    if(state.logTimer){ clearInterval(state.logTimer); state.logTimer = null; }
+  }
+
+  function renderLog(list){
+    const tb = $('logBody');
+    if(!list || list.length === 0){
+      tb.innerHTML = `<tr><td colspan="5" class="empty">No activity yet.</td></tr>`; return;
+    }
+    tb.innerHTML = list.map(c => `
+      <tr>
+        <td>${escapeHtml(formatTime(c.at))}</td>
+        <td>${escapeHtml(c.name)}</td>
+        <td>${escapeHtml(c.email || '—')}</td>
+        <td>${c.count || 1}</td>
+        <td><span class="badge-ok">Checked in</span></td>
+      </tr>`).join('');
+  }
+  function formatTime(iso){ try{ return new Date(iso).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); } catch(_){ return iso; } }
+  function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  // -------- Scanner --------
+  $('startBtn').addEventListener('click', startScanner);
+  $('stopBtn').addEventListener('click', stopScanner);
+  $('manualBtn').addEventListener('click', () => {
+    const t = $('manualScan').value.trim();
+    if(!t) return;
+    handleScan(t); $('manualScan').value = '';
+  });
+  $('manualScan').addEventListener('keydown', (e) => { if(e.key === 'Enter') $('manualBtn').click(); });
+
+  async function startScanner(){
+    if(state.scanning) return;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video:{facingMode:'environment'}, audio:false });
+      $('video').srcObject = stream;
+      await $('video').play();
+      $('scanEmpty').classList.add('hide');
+      state.scanning = true;
+      $('startBtn').disabled = true; $('stopBtn').disabled = false;
+      $('scanStatus').textContent = 'Scanning…';
+      canvas = document.createElement('canvas');
+      ctx = canvas.getContext('2d', { willReadFrequently:true });
+      loop();
+    } catch(err){
+      $('scanStatus').textContent = `Camera error: ${err.message}`;
+      showAlert($('liveAlert'),'err',`Cannot access camera: ${err.message}`);
+    }
+  }
+  function loop(){
+    if(!state.scanning) return;
+    const v = $('video');
+    if(v.readyState === v.HAVE_ENOUGH_DATA){
+      const w = v.videoWidth, h = v.videoHeight;
+      if(w && h){
+        canvas.width = w; canvas.height = h;
+        ctx.drawImage(v, 0, 0, w, h);
+        try{
+          const img = ctx.getImageData(0,0,w,h);
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts:'attemptBoth' });
+          if(code && code.data) handleScan(code.data);
+        } catch(_){}
+      }
+    }
+    raf = requestAnimationFrame(loop);
+  }
+  function stopScanner(){
+    state.scanning = false;
+    if(raf) cancelAnimationFrame(raf);
+    if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+    $('video').srcObject = null;
+    $('scanEmpty').classList.remove('hide');
+    $('startBtn').disabled = false; $('stopBtn').disabled = true;
+    $('scanStatus').textContent = 'Stopped';
+  }
+
+  function handleScan(text){
+    const now = Date.now();
+    if(text === state.lastScanText && now - state.lastScanAt < 2000) return;
+    state.lastScanText = text; state.lastScanAt = now;
+    openModalForScan(text);
+  }
+
+  async function openModalForScan(text){
+    if(!state.code) return;
+    state.pending = null;
+    const card = $('modalCard');
+    card.classList.remove('ok','warn','err');
+    try{
+      const r = await fetch(`/api/events/${state.code}/lookup`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ qr_text: text })
+      });
+      const j = await r.json();
+      if(!j.found){
+        card.classList.add('err');
+        $('mEmoji').textContent = '❌';
+        $('mEyebrow').textContent = 'Not found';
+        $('mTitle').textContent = 'No matching recipient';
+        $('mSub').textContent = text;
+        $('mBody').style.display = 'none';
+        $('mConfirm').style.display = 'none';
+        $('mCancel').textContent = 'Close';
+      } else if(j.checkin){
+        card.classList.add('warn');
+        $('mEmoji').textContent = '⚠️';
+        $('mEyebrow').textContent = 'Already checked in';
+        $('mTitle').textContent = j.recipient.name;
+        $('mSub').textContent = `${j.checkin.count} ${j.checkin.count === 1 ? 'person' : 'people'} · ${formatTime(j.checkin.at)}`;
+        $('mBody').style.display = 'none';
+        $('mConfirm').style.display = 'none';
+        $('mCancel').textContent = 'Close';
+      } else {
+        card.classList.add('ok');
+        state.pending = j.recipient;
+        $('mEmoji').textContent = '👋';
+        $('mEyebrow').textContent = 'Welcome';
+        $('mTitle').textContent = j.recipient.name;
+        $('mSub').textContent = j.recipient.email || j.recipient.qr_text;
+        $('mBody').style.display = '';
+        $('cCount').value = '1';
+        $('mConfirm').style.display = '';
+        $('mCancel').textContent = 'Cancel';
+      }
+      $('modal').classList.add('show');
+    } catch(e){
+      showAlert($('liveAlert'),'err',`Lookup failed: ${e.message}`);
+    }
+  }
+  function closeModal(){ $('modal').classList.remove('show'); state.pending = null; }
+  $('mCancel').addEventListener('click', closeModal);
+  $('modal').addEventListener('click', (e) => { if(e.target.id === 'modal') closeModal(); });
+  $('cMinus').addEventListener('click', () => { $('cCount').value = Math.max(1,(parseInt($('cCount').value,10)||1)-1); });
+  $('cPlus').addEventListener('click', () => { $('cCount').value = Math.max(1,(parseInt($('cCount').value,10)||1)+1); });
+
+  $('mConfirm').addEventListener('click', async () => {
+    if(!state.pending) return;
+    const r = state.pending;
+    const count = Math.max(1, parseInt($('cCount').value,10) || 1);
+    try{
+      const res = await fetch(`/api/events/${state.code}/checkin`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ recipient_id: r.recipient_id, count })
+      });
+      if(res.status === 409){
+        showAlert($('liveAlert'),'warn',`Already checked in by another device.`);
+      } else if(!res.ok){
+        const j = await res.json().catch(()=>({}));
+        throw new Error(j.detail || `HTTP ${res.status}`);
+      } else {
+        showAlert($('liveAlert'),'ok',`Checked in: ${r.name}`);
+      }
+      closeModal();
+      await loadCheckins(); await refreshStats();
+    } catch(e){
+      showAlert($('liveAlert'),'err',`Check-in failed: ${e.message}`);
+    }
+  });
+
+  // -------- Reset / CSV --------
+  $('resetBtn').addEventListener('click', async () => {
+    if(!confirm('Reset ALL check-ins for this event? This cannot be undone.')) return;
+    try{
+      const r = await fetch(`/api/events/${state.code}/checkins?confirm=YES`, { method:'DELETE' });
+      if(!r.ok){ const j = await r.json().catch(()=>({})); throw new Error(j.detail || `HTTP ${r.status}`); }
+      await loadCheckins(); await refreshStats();
+      showAlert($('liveAlert'),'ok','All check-ins cleared.');
+    } catch(e){ showAlert($('liveAlert'),'err',`Reset failed: ${e.message}`); }
+  });
+
+  $('csvBtn').addEventListener('click', () => {
+    const rows = [['Name','Email','QR text','Checked in at','People count','Status']];
+    for(const r of state.recipients){
+      const c = state.checkinsById[r.recipient_id];
+      rows.push([
+        r.name || '', r.email || '', r.qr_text || '',
+        c ? c.at : '', c ? (c.count || 1) : '',
+        c ? 'Checked in' : 'Pending'
+      ]);
+    }
+    const csv = rows.map(row => row.map(cellCsv).join(',')).join('\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `attendance_${state.code}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  });
+  function cellCsv(s){ const v=String(s??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+
+  // -------- Walk-in --------
+  $('walkInBtn').addEventListener('click', () => {
+    if(!state.code){ showAlert($('liveAlert'),'warn','Connect to an event first.'); return; }
+    $('wName').value = ''; $('wEmail').value = ''; $('wCount').value = '1'; $('wEmailPass').checked = true;
+    hideAlert($('wAlert'));
+    $('walkModal').classList.add('show');
+    setTimeout(() => $('wName').focus(), 50);
+  });
+  $('wCancel').addEventListener('click', () => $('walkModal').classList.remove('show'));
+  $('walkModal').addEventListener('click', (e) => { if(e.target.id === 'walkModal') $('walkModal').classList.remove('show'); });
+  $('wMinus').addEventListener('click', () => { $('wCount').value = Math.max(1,(parseInt($('wCount').value,10)||1)-1); });
+  $('wPlus').addEventListener('click', () => { $('wCount').value = Math.max(1,(parseInt($('wCount').value,10)||1)+1); });
+
+  $('wConfirm').addEventListener('click', async () => {
+    const name = $('wName').value.trim();
+    const email = $('wEmail').value.trim();
+    const count = Math.max(1, parseInt($('wCount').value, 10) || 1);
+    const wantEmail = $('wEmailPass').checked && !!email;
+    if(!name){ showAlert($('wAlert'),'err','Name is required.'); return; }
+    hideAlert($('wAlert'));
+    $('wConfirm').disabled = true; $('wConfirm').textContent = 'Saving…';
+    try{
+      const r = await fetch(`/api/events/${state.code}/walkin`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, email, count })
+      });
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      $('walkModal').classList.remove('show');
+      await loadCheckins(); await refreshStats(); await loadRecipients();
+      // Show success modal with QR rendered & optional email
+      await showWalkinSuccess(j, wantEmail);
+    } catch(e){
+      showAlert($('wAlert'),'err',`Walk-in failed: ${e.message}`);
+    } finally {
+      $('wConfirm').disabled = false; $('wConfirm').textContent = 'Check in & (optionally) email';
+    }
+  });
+
+  async function showWalkinSuccess(payload, wantEmail){
+    const r = payload.recipient;
+    const ev = payload.event || {};
+    $('wsTitle').textContent = r.name;
+    $('wsSub').textContent = `Checked in${r.email ? ' · ' + r.email : ''}`;
+    // Render QR client-side
+    const host = $('wsQr');
+    host.innerHTML = '';
+    const size = Math.min(240, ev.qr_size || 240);
+    const qr = new QRCodeStyling({
+      width: size, height: size, type: 'canvas',
+      data: r.qr_text, margin: 4,
+      qrOptions: { errorCorrectionLevel: 'H' },
+      dotsOptions: { type:'square', color:'#111111' },
+      backgroundOptions: { color:'#ffffff' },
+      cornersSquareOptions: { type:'extra-rounded', color:'#111111' },
+      cornersDotOptions: { type:'dot', color:'#c2410c' }
+    });
+    qr.append(host);
+    // Email if requested
+    $('wsMail').textContent = '';
+    if(wantEmail){
+      try{
+        // small wait to ensure canvas drawn
+        await new Promise(res => setTimeout(res, 250));
+        const blob = await qr.getRawData('png');
+        const b64 = await blobToBase64(blob);
+        const res = await fetch(`/api/send-qr-email?event_code=${encodeURIComponent(state.code)}`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            recipient_email: r.email,
+            recipient_name: r.name,
+            event_name: ev.name || '',
+            event_year: ev.year || '',
+            event_date: ev.date || '',
+            event_venue: ev.venue || '',
+            qr_text: r.qr_text,
+            qr_png_base64: b64,
+            extra_note: 'You are already checked in. Save this QR for your records.'
+          })
+        });
+        if(res.ok) $('wsMail').textContent = `Pass emailed to ${r.email}`;
+        else { const j = await res.json().catch(()=>({})); $('wsMail').textContent = `Email failed: ${j.detail || res.status}`; }
+      } catch(e){
+        $('wsMail').textContent = `Email failed: ${e.message}`;
+      }
+    } else if(r.email){
+      $('wsMail').textContent = 'No email sent (unchecked).';
+    }
+    $('walkSuccessModal').classList.add('show');
+  }
+  function blobToBase64(blob){
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onloadend = () => { const d = String(r.result); const i = d.indexOf(','); res(i>=0 ? d.slice(i+1) : d); };
+      r.onerror = () => rej(new Error('Encode failed'));
+      r.readAsDataURL(blob);
+    });
+  }
+  $('wsClose').addEventListener('click', () => $('walkSuccessModal').classList.remove('show'));
+  $('walkSuccessModal').addEventListener('click', (e) => { if(e.target.id === 'walkSuccessModal') $('walkSuccessModal').classList.remove('show'); });
+
+  // -------- Print event self-check-in poster --------
+  $('posterBtn').addEventListener('click', () => {
+    if(!state.code){ showAlert($('liveAlert'),'warn','Connect to an event first.'); return; }
+    const url = `${location.origin}/checkin.html?event=${encodeURIComponent(state.code)}`;
+    const ev = state.event || {};
+    // Title from header
+    const headerText = $('evHeader').textContent || '';
+    const title = headerText.split('·')[0].trim() || `Event ${state.code}`;
+    $('posterTitle').textContent = title;
+    $('posterMeta').textContent = ev.date || ev.venue ? [ev.date, ev.venue].filter(Boolean).join(' · ') : 'Self check-in';
+    $('posterUrl').textContent = url;
+    $('posterCode').textContent = state.code;
+    // Render big QR
+    const host = $('posterQr');
+    host.innerHTML = '';
+    const qr = new QRCodeStyling({
+      width: 480, height: 480, type: 'canvas',
+      data: url, margin: 6,
+      qrOptions: { errorCorrectionLevel: 'M' },
+      dotsOptions: { type: 'square', color: '#111' },
+      backgroundOptions: { color: '#fff' },
+      cornersSquareOptions: { type: 'extra-rounded', color: '#111' },
+      cornersDotOptions: { type: 'dot', color: '#c2410c' }
+    });
+    qr.append(host);
+    setTimeout(() => window.print(), 350);
+  });
+
+  // Auto-connect if URL/localStorage had a code
+  if(initialCode) connect(initialCode);
+})();
+</script>
+</body>
+</html>

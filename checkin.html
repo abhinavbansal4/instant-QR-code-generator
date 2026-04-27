@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<meta name="theme-color" content="#0c0a06" />
+<title>Self Check-in</title>
+<style>
+  :root{
+    --bg:#0c0a06; --panel:rgba(28,24,16,.86); --panel-2:#1d1a11; --border:#2b2618;
+    --text:#f1ede2; --muted:#a39e8c;
+    --accent:#fb923c; --accent-2:#f97316; --accent-3:#fbbf24;
+    --ok:#4ade80; --ok-soft:#0e2c1a; --warn:#fbbf24; --warn-soft:#2a200c; --err:#f87171; --err-soft:#2a1010;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+    radial-gradient(1100px 900px at 0% -10%,rgba(245,158,11,.28),transparent 60%),
+    radial-gradient(900px 800px at 100% 10%,rgba(217,70,239,.18),transparent 60%),
+    radial-gradient(1000px 900px at 50% 110%,rgba(234,88,12,.28),transparent 60%);
+    animation:meshDrift 16s ease-in-out infinite alternate}
+  @keyframes meshDrift{from{filter:hue-rotate(0deg)}to{filter:hue-rotate(15deg)}}
+  body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.04) 1px,transparent 1.5px);
+    background-size:20px 20px}
+
+  .wrap{max-width:560px;margin:0 auto;padding:18px 18px 60px;min-height:100vh;display:flex;flex-direction:column}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .logo{width:42px;height:42px;border-radius:12px;background:conic-gradient(from 220deg,#f59e0b,#ea580c,#c2410c,#f59e0b);display:grid;place-items:center;color:#fff;font-weight:800;letter-spacing:.5px;font-size:14px}
+  .brand h1{margin:0;font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .brand .sub{font-size:12px;color:var(--muted);margin-top:1px}
+
+  .hero{
+    background:var(--panel);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--border);border-radius:20px;padding:24px;margin-bottom:14px;
+    box-shadow:0 30px 80px -30px rgba(0,0,0,.6);
+    position:relative;overflow:hidden
+  }
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--accent-3);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 rgba(251,146,60,.7);animation:pulse 1.5s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(251,146,60,0)}100%{box-shadow:0 0 0 0 rgba(251,146,60,0)}}
+  .hero h2{margin:0;font-size:clamp(24px,5vw,30px);font-weight:800;letter-spacing:-.02em;line-height:1.1}
+  .hero h2 .grad{background:linear-gradient(90deg,#fbbf24,#fb923c,#f97316);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .meta{margin-top:8px;font-size:13.5px;color:var(--muted);line-height:1.5}
+
+  .card{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:12px}
+  label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+  input[type=text],input[type=email]{width:100%;padding:14px 14px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);color:var(--text);font:inherit;font-size:16px}
+  input:focus{outline:none;border-color:var(--accent)}
+  .btn{appearance:none;border:1px solid transparent;border-radius:14px;cursor:pointer;padding:14px 18px;font:inherit;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:10px;justify-content:center;width:100%;line-height:1}
+  .btn-primary{background:linear-gradient(180deg,var(--accent-2),#c2410c);color:#fff;box-shadow:0 6px 20px -6px rgba(194,65,12,.55)}
+  .btn-primary:active{transform:scale(.99)}
+  .btn-ghost{background:var(--panel-2);color:var(--text);border-color:var(--border)}
+  .btn-ghost:active{transform:scale(.99)}
+  .btn .ic{width:18px;height:18px;flex-shrink:0}
+  .btn-row{display:grid;gap:8px;margin-top:10px}
+
+  .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.16em;margin:14px 0}
+  .or::before,.or::after{content:"";flex:1;height:1px;background:var(--border)}
+
+  .scan-frame{position:relative;width:100%;aspect-ratio:1/1;border-radius:14px;overflow:hidden;background:#0a0905;border:1px solid var(--border)}
+  .scan-frame video{width:100%;height:100%;object-fit:cover}
+  .scan-corners{position:absolute;inset:14%;background:
+    linear-gradient(#fff,#fff) left top   /28px 4px no-repeat,
+    linear-gradient(#fff,#fff) left top   /4px 28px no-repeat,
+    linear-gradient(#fff,#fff) right top  /28px 4px no-repeat,
+    linear-gradient(#fff,#fff) right top  /4px 28px no-repeat,
+    linear-gradient(#fff,#fff) left bottom /28px 4px no-repeat,
+    linear-gradient(#fff,#fff) left bottom /4px 28px no-repeat,
+    linear-gradient(#fff,#fff) right bottom /28px 4px no-repeat,
+    linear-gradient(#fff,#fff) right bottom /4px 28px no-repeat;opacity:.55;pointer-events:none}
+  .scan-line{position:absolute;left:14%;right:14%;top:14%;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);box-shadow:0 0 12px rgba(251,146,60,.7);pointer-events:none;animation:scanmove 2.4s ease-in-out infinite alternate}
+  @keyframes scanmove{from{transform:translateY(0)}to{transform:translateY(72%)}}
+  .scan-empty{position:absolute;inset:0;display:grid;place-items:center;color:#a39a85;text-align:center;font-size:13px;background:#0a0905}
+  .scan-empty.hide{display:none}
+
+  .matches{display:flex;flex-direction:column;gap:8px;margin-top:10px;max-height:300px;overflow-y:auto}
+  .match{display:flex;align-items:center;gap:12px;padding:12px;background:var(--panel-2);border:1px solid var(--border);border-radius:12px;cursor:pointer}
+  .match:hover{border-color:var(--accent)}
+  .match.checkedin{opacity:.55}
+  .av{width:38px;height:38px;border-radius:10px;background:conic-gradient(from var(--ang,0deg),#f97316,#fbbf24,#d946ef,#f97316);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;flex-shrink:0}
+  .who .nm{font-weight:700;font-size:14px}
+  .who .em{font-size:12px;color:var(--muted)}
+  .pill-in{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--ok);background:var(--ok-soft);padding:2px 7px;border-radius:999px;border:1px solid var(--ok)}
+
+  .alert{border-radius:10px;padding:11px 14px;font-size:13px;margin-top:10px;border:1px solid transparent;display:none}
+  .alert.show{display:block}
+  .alert.ok{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+  .alert.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+  .alert.err{background:var(--err-soft);color:var(--err);border-color:var(--err)}
+
+  /* Success state */
+  .success{position:fixed;inset:0;z-index:50;background:radial-gradient(ellipse at top,#0e2c1a 0%,#0a1c12 60%,#08120c 100%);display:none;align-items:center;justify-content:center;padding:20px;animation:fadeIn .25s ease-out}
+  .success.show{display:flex}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .success-card{max-width:420px;width:100%;background:rgba(20,30,20,.7);backdrop-filter:blur(18px);border:1px solid rgba(74,222,128,.4);border-radius:24px;padding:34px 26px;text-align:center;position:relative;overflow:hidden}
+  .check-tick{width:88px;height:88px;border-radius:50%;background:linear-gradient(180deg,#4ade80,#15803d);display:grid;place-items:center;margin:0 auto 14px;animation:tickPop .5s cubic-bezier(.2,.9,.3,1.4)}
+  @keyframes tickPop{0%{transform:scale(0)}70%{transform:scale(1.1)}100%{transform:scale(1)}}
+  .check-tick svg{width:46px;height:46px;color:#fff;stroke-dasharray:60;stroke-dashoffset:60;animation:dash .35s .15s ease-out forwards}
+  @keyframes dash{to{stroke-dashoffset:0}}
+  .success h3{margin:0 0 6px;font-size:24px;font-weight:800;color:#fff}
+  .success .who2{font-size:18px;color:#dcfce7;font-weight:600;margin-bottom:6px}
+  .success .when{font-size:13px;color:rgba(255,255,255,.6)}
+  .success .conf{position:absolute;width:8px;height:14px;border-radius:2px;animation:fall 2.6s linear infinite;opacity:0}
+  .success.show .conf{opacity:1}
+  @keyframes fall{from{transform:translateY(-40vh) rotate(0)}to{transform:translateY(40vh) rotate(540deg)}}
+  .success-card .actions2{margin-top:18px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .success-card .actions2 .btn{width:auto}
+
+  .footer{margin-top:auto;padding-top:18px;text-align:center;color:var(--muted);font-size:12px}
+  .footer a{color:var(--accent);text-decoration:none}
+
+  .topnav{display:flex;align-items:center;gap:8px;padding:10px 16px;margin-bottom:24px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:16px;backdrop-filter:blur(12px);}
+  .nav-logo{font-weight:900;font-size:15px;color:#fff;text-decoration:none;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#f97316,#c2410c);display:grid;place-items:center;flex-shrink:0;margin-right:4px;}
+  .nav-links{display:flex;gap:4px;align-items:center;flex:1;flex-wrap:wrap}
+  .nav-link{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;color:rgba(255,255,255,.55);border:1px solid transparent;transition:all .15s;white-space:nowrap;}
+  .nav-link svg{width:15px;height:15px;flex-shrink:0}
+  .nav-link:hover{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.15)}
+  .nav-link.active{background:rgba(251,146,60,.18);color:#fb923c;border-color:rgba(251,146,60,.25)}
+  @media(max-width:600px){.nav-link span{display:none}.nav-link{padding:8px}.nav-link svg{width:18px;height:18px}}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="nav-logo" href="/">QR</a>
+  <div class="nav-links">
+    <a href="/" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Generator</span></a>
+    <a href="/scan.html" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg><span>Scanner</span></a>
+    <a href="/dashboard.html" class="nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="3" y="12" width="7" height="9" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/></svg><span>Dashboard</span></a>
+    <a href="/checkin.html" class="nav-link active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg><span>Self Check-in</span></a>
+  </div>
+</nav>
+<div class="wrap">
+  <div class="brand">
+    <div class="logo">QR</div>
+    <div>
+      <h1>Self check-in</h1>
+      <div class="sub">Scan your personal QR or find yourself by email.</div>
+    </div>
+  </div>
+
+  <!-- Connect (rare — usually URL has ?event=) -->
+  <section class="card" id="connectCard">
+    <label for="evCode">Event code</label>
+    <input id="evCode" type="text" placeholder="e.g. A4F9-X7K2" data-testid="event-code-input"/>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="connectBtn" type="button" data-testid="connect-btn">Continue</button>
+    </div>
+    <div class="alert" id="connectAlert"></div>
+  </section>
+
+  <!-- Hero (event title + welcome) -->
+  <div class="hero" id="hero" style="display:none">
+    <span class="eyebrow"><span class="pulse"></span>You're at the venue</span>
+    <h2><span id="evTitle">—</span></h2>
+    <div class="meta" id="evMeta">—</div>
+  </div>
+
+  <!-- Method picker -->
+  <div class="card" id="methodCard" style="display:none">
+    <div class="btn-row">
+      <button class="btn btn-primary" id="m1" type="button" data-testid="method-scan-btn">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M21 7V5a2 2 0 0 0-2-2h-2"/><path d="M3 17v2a2 2 0 0 0 2 2h2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+        Scan my personal QR
+      </button>
+      <button class="btn btn-ghost" id="m2" type="button" data-testid="method-email-btn">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+        Find me by email or name
+      </button>
+    </div>
+  </div>
+
+  <!-- Scan-my-QR mode -->
+  <div class="card" id="scanCard" style="display:none">
+    <div class="scan-frame">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="scan-corners"></div>
+      <div class="scan-line"></div>
+      <div class="scan-empty hide" id="scanEmpty">Allow camera access…</div>
+    </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn btn-ghost" id="scanBack" type="button" data-testid="scan-back-btn">← Back</button>
+    </div>
+    <div class="alert" id="scanAlert"></div>
+  </div>
+
+  <!-- Email/Name lookup mode -->
+  <div class="card" id="emailCard" style="display:none">
+    <label for="qLookup">Your email or name</label>
+    <input id="qLookup" type="text" autocomplete="off" placeholder="e.g. anita@example.com or Anita" data-testid="lookup-input"/>
+    <div class="btn-row" style="margin-top:8px">
+      <button class="btn btn-primary" id="qSearchBtn" type="button" data-testid="lookup-btn">Search</button>
+      <button class="btn btn-ghost" id="qBack" type="button" data-testid="email-back-btn">← Back</button>
+    </div>
+    <div class="matches" id="matches"></div>
+    <div class="alert" id="emailAlert"></div>
+  </div>
+
+  <!-- Confirm card (after match) -->
+  <div class="card" id="confirmCard" style="display:none">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="av" id="confAv">--</div>
+      <div style="flex:1">
+        <div style="font-weight:800;font-size:18px" id="confName">—</div>
+        <div style="color:var(--muted);font-size:13px;word-break:break-all" id="confSub">—</div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label>How many in your group?</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn btn-ghost" id="cMinus" type="button" data-testid="people-minus" style="width:46px;padding:10px">−</button>
+        <input id="cCount" type="text" value="1" inputmode="numeric" pattern="[0-9]*" style="text-align:center;font-weight:800;font-size:18px" data-testid="people-count"/>
+        <button class="btn btn-ghost" id="cPlus" type="button" data-testid="people-plus" style="width:46px;padding:10px">+</button>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-primary" id="confirmBtn" type="button" data-testid="confirm-btn">✓ Confirm — check me in</button>
+      <button class="btn btn-ghost" id="confirmBack" type="button" data-testid="confirm-back-btn">← Back</button>
+    </div>
+    <div class="alert" id="confirmAlert"></div>
+  </div>
+
+  <div class="footer">Powered by QR Events · Your check-in is recorded instantly · <a href="#" id="restart">Start over</a></div>
+</div>
+
+<!-- Success overlay -->
+<div class="success" id="successOverlay">
+  <div class="success-card">
+    <div class="check-tick">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.5l4.5 4.5L19 7"/>
+      </svg>
+    </div>
+    <div class="eyebrow" style="background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.4);color:#dcfce7">Checked in</div>
+    <h3 id="okTitle">Welcome!</h3>
+    <div class="who2" id="okName">—</div>
+    <div class="when" id="okWhen">—</div>
+    <div class="actions2">
+      <button class="btn btn-ghost" id="okAnother" type="button" data-testid="success-another-btn">Check in another person</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  let code = (params.get('event') || '').toUpperCase();
+  let event = null;
+  let matched = null;
+  let stream = null, raf = null, canvas = null, ctx = null, scanning = false, lastText = '', lastAt = 0;
+
+  if(code) $('evCode').value = code;
+
+  // Hide / show helpers
+  const hide = (id) => $(id).style.display = 'none';
+  const show = (id) => $(id).style.display = 'block';
+  function showOnly(...ids){
+    ['connectCard','hero','methodCard','scanCard','emailCard','confirmCard']
+      .forEach(x => $(x).style.display = ids.includes(x) ? (x==='hero' ? 'block' : 'block') : 'none');
+  }
+  function setAlert(el, kind, msg){ el.className = `alert show ${kind}`; el.textContent = msg; }
+  function clearAlert(el){ el.className = 'alert'; el.textContent = ''; }
+
+  $('connectBtn').addEventListener('click', () => start($('evCode').value.trim().toUpperCase()));
+  $('evCode').addEventListener('keydown', e => { if(e.key === 'Enter') $('connectBtn').click(); });
+
+  async function start(c){
+    if(!c){ setAlert($('connectAlert'),'err','Enter the event code.'); return; }
+    clearAlert($('connectAlert'));
+    try{
+      const r = await fetch(`/api/events/${encodeURIComponent(c)}`);
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+      code = c; event = j.event;
+      $('evTitle').innerHTML = `<span class="grad">${escapeHtml(event.name || 'Event')}</span> ${escapeHtml(event.year || '')}`;
+      $('evMeta').textContent = [event.date, event.venue].filter(Boolean).join(' · ') || `Event code: ${c}`;
+      const url = new URL(location.href); url.searchParams.set('event', c); history.replaceState({},'',url);
+      showOnly('hero','methodCard');
+    } catch(e){
+      setAlert($('connectAlert'),'err',`Could not connect: ${e.message}`);
+    }
+  }
+
+  // ---------- Method picker ----------
+  $('m1').addEventListener('click', () => { showOnly('hero','scanCard'); startScanner(); });
+  $('m2').addEventListener('click', () => { showOnly('hero','emailCard'); setTimeout(() => $('qLookup').focus(), 100); });
+  $('scanBack').addEventListener('click', () => { stopScanner(); showOnly('hero','methodCard'); });
+  $('qBack').addEventListener('click', () => { showOnly('hero','methodCard'); $('matches').innerHTML=''; clearAlert($('emailAlert')); });
+  $('confirmBack').addEventListener('click', () => { matched = null; showOnly('hero','methodCard'); });
+  $('restart').addEventListener('click', (e) => { e.preventDefault(); matched = null; stopScanner(); $('successOverlay').classList.remove('show'); showOnly('hero','methodCard'); });
+
+  // ---------- Scanner ----------
+  async function startScanner(){
+    if(scanning) return;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
+      $('video').srcObject = stream; await $('video').play();
+      $('scanEmpty').classList.add('hide');
+      scanning = true;
+      canvas = document.createElement('canvas');
+      ctx = canvas.getContext('2d', { willReadFrequently:true });
+      tick();
+    } catch(err){
+      setAlert($('scanAlert'),'err',`Cannot access camera: ${err.message}. Try the email/name option instead.`);
+    }
+  }
+  function tick(){
+    if(!scanning) return;
+    const v = $('video');
+    if(v.readyState === v.HAVE_ENOUGH_DATA){
+      const w = v.videoWidth, h = v.videoHeight;
+      if(w && h){
+        canvas.width = w; canvas.height = h;
+        ctx.drawImage(v, 0, 0, w, h);
+        try{
+          const img = ctx.getImageData(0, 0, w, h);
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts:'attemptBoth' });
+          if(code && code.data) onScan(code.data);
+        } catch(_){}
+      }
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  function stopScanner(){
+    scanning = false;
+    if(raf) cancelAnimationFrame(raf);
+    if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+    $('video').srcObject = null;
+  }
+
+  async function onScan(text){
+    const now = Date.now();
+    if(text === lastText && now - lastAt < 2500) return;
+    lastText = text; lastAt = now;
+    try{
+      const r = await fetch(`/api/events/${code}/lookup`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ qr_text: text })
+      });
+      const j = await r.json();
+      if(!j.found){
+        setAlert($('scanAlert'),'err','That QR is not for this event. Try the email/name option.');
+        return;
+      }
+      stopScanner();
+      showMatch(j.recipient, j.checkin);
+    } catch(e){ setAlert($('scanAlert'),'err',`Lookup failed: ${e.message}`); }
+  }
+
+  // ---------- Email/name search ----------
+  $('qSearchBtn').addEventListener('click', searchByText);
+  $('qLookup').addEventListener('keydown', e => { if(e.key === 'Enter') searchByText(); });
+
+  async function searchByText(){
+    const q = $('qLookup').value.trim();
+    if(!q){ setAlert($('emailAlert'),'warn','Type your email or name.'); return; }
+    clearAlert($('emailAlert'));
+    const isEmail = /@/.test(q);
+    try{
+      const r = await fetch(`/api/events/${code}/lookup-multi`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ [isEmail ? 'email' : 'name']: q })
+      });
+      const j = await r.json();
+      const items = j.matches || [];
+      if(items.length === 0){
+        setAlert($('emailAlert'),'warn','No match. Check spelling, or ask staff for help.');
+        $('matches').innerHTML = '';
+        return;
+      }
+      if(items.length === 1){
+        showMatch(items[0], items[0].checkin || null);
+        return;
+      }
+      // multiple — list
+      $('matches').innerHTML = items.map(r => {
+        const initials = (r.name || '?').split(/\s+/).map(s => s[0]||'').slice(0,2).join('').toUpperCase();
+        const ang = (hashStr(r.recipient_id || r.name) % 360);
+        const ci = r.checkin ? '<span class="pill-in">✓ Already in</span>' : '';
+        return `<div class="match ${r.checkin ? 'checkedin' : ''}" data-id="${r.recipient_id}" data-testid="match-row">
+          <div class="av" style="--ang:${ang}deg">${escapeHtml(initials)}</div>
+          <div class="who"><div class="nm">${escapeHtml(r.name)}</div><div class="em">${escapeHtml(r.email || '—')}</div></div>
+          ${ci}
+        </div>`;
+      }).join('');
+      $('matches').querySelectorAll('.match').forEach(el => {
+        el.addEventListener('click', () => {
+          const r = items.find(x => x.recipient_id === el.dataset.id);
+          if(r) showMatch(r, r.checkin || null);
+        });
+      });
+    } catch(e){ setAlert($('emailAlert'),'err',`Lookup failed: ${e.message}`); }
+  }
+
+  // ---------- Confirm card ----------
+  function showMatch(r, existingCheckin){
+    matched = r;
+    showOnly('hero','confirmCard');
+    const initials = (r.name || '?').split(/\s+/).map(s => s[0]||'').slice(0,2).join('').toUpperCase();
+    $('confAv').textContent = initials;
+    $('confAv').style.setProperty('--ang', (hashStr(r.recipient_id || r.name) % 360) + 'deg');
+    $('confName').textContent = r.name;
+    $('confSub').textContent = r.email || r.qr_text || '';
+    $('cCount').value = '1';
+    clearAlert($('confirmAlert'));
+    if(existingCheckin){
+      setAlert($('confirmAlert'),'warn',`Already checked in ${formatTime(existingCheckin.at)} · ${existingCheckin.count} ${existingCheckin.count === 1 ? 'person' : 'people'}.`);
+      $('confirmBtn').textContent = 'Already checked in';
+      $('confirmBtn').disabled = true;
+    } else {
+      $('confirmBtn').textContent = '✓ Confirm — check me in';
+      $('confirmBtn').disabled = false;
+    }
+  }
+
+  $('cMinus').addEventListener('click', () => { $('cCount').value = Math.max(1, (parseInt($('cCount').value,10)||1) - 1); });
+  $('cPlus').addEventListener('click', () => { $('cCount').value = Math.max(1, (parseInt($('cCount').value,10)||1) + 1); });
+
+  $('confirmBtn').addEventListener('click', async () => {
+    if(!matched) return;
+    const count = Math.max(1, parseInt($('cCount').value, 10) || 1);
+    $('confirmBtn').disabled = true; $('confirmBtn').textContent = 'Checking in…';
+    try{
+      const r = await fetch(`/api/events/${code}/checkin`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ recipient_id: matched.recipient_id, count })
+      });
+      if(r.status === 409){
+        const j = await r.json();
+        const c = (j.detail && j.detail.checkin) || null;
+        setAlert($('confirmAlert'),'warn',`Already checked in${c ? ' · ' + formatTime(c.at) : ''}.`);
+      } else if(!r.ok){
+        const j = await r.json().catch(()=>({}));
+        throw new Error(j.detail || `HTTP ${r.status}`);
+      } else {
+        const j = await r.json();
+        showSuccess(matched, j.checkin);
+        return;
+      }
+    } catch(e){
+      setAlert($('confirmAlert'),'err',`Failed: ${e.message}`);
+    } finally {
+      $('confirmBtn').disabled = false; $('confirmBtn').textContent = '✓ Confirm — check me in';
+    }
+  });
+
+  // ---------- Success ----------
+  function showSuccess(r, checkin){
+    $('okTitle').textContent = `Welcome${(r.name || '').split(' ')[0] ? ', ' + (r.name.split(' ')[0]) : ''}!`;
+    $('okName').textContent = r.name;
+    $('okWhen').textContent = `${formatTime((checkin && checkin.at) || new Date().toISOString())} · ${(checkin && checkin.count) || 1} ${((checkin && checkin.count) || 1) === 1 ? 'person' : 'people'} · Event ${code}`;
+    addConfetti();
+    $('successOverlay').classList.add('show');
+    if(navigator.vibrate) navigator.vibrate([60,40,60]);
+  }
+  function addConfetti(){
+    const o = $('successOverlay');
+    o.querySelectorAll('.conf').forEach(n => n.remove());
+    const colors = ['#fb923c','#fbbf24','#4ade80','#d946ef','#60a5fa'];
+    for(let i = 0; i < 36; i++){
+      const c = document.createElement('div');
+      c.className = 'conf';
+      c.style.background = colors[i % colors.length];
+      c.style.left = Math.random() * 100 + '%';
+      c.style.top = -Math.random() * 30 + 'vh';
+      c.style.animationDelay = (Math.random() * 0.6) + 's';
+      c.style.animationDuration = (1.6 + Math.random() * 1.4) + 's';
+      o.appendChild(c);
+    }
+  }
+  $('okAnother').addEventListener('click', () => {
+    matched = null; lastText = ''; $('successOverlay').classList.remove('show');
+    showOnly('hero','methodCard');
+  });
+
+  // ---------- Helpers ----------
+  function formatTime(iso){ try { return new Date(iso).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }); } catch(_){ return iso; } }
+  function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function hashStr(s){ let h=0; for(const ch of String(s)) h = (h*31 + ch.charCodeAt(0)) >>> 0; return h; }
+
+  if(code) start(code);
+  else showOnly('connectCard');
+})();
+</script>
+</body>
+</html>
