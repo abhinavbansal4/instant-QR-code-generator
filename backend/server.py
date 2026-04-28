@@ -23,8 +23,10 @@ load_dotenv(ROOT_DIR / '.env')
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-mongo_url = os.environ['MONGO_URL']
-db_name = os.environ['DB_NAME']
+mongo_url = os.environ.get('MONGO_URL', '')
+db_name = os.environ.get('DB_NAME', 'qr_events')
+if not mongo_url:
+    raise RuntimeError("MONGO_URL environment variable is not set")
 
 resend.api_key = os.environ.get('RESEND_API_KEY', '')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
@@ -169,6 +171,8 @@ async def email_health():
 # Events
 @api_router.post("/events")
 async def create_event(req: CreateEventRequest):
+    if db is None:
+        raise HTTPException(503, "Database not connected")
     for _ in range(8):
         code = gen_event_code()
         doc = {
@@ -184,6 +188,9 @@ async def create_event(req: CreateEventRequest):
             return {"event_code": code, "event": doc, "stats": await get_stats(code)}
         except DuplicateKeyError:
             continue
+        except Exception as e:
+            logger.error(f"create_event DB error: {e}")
+            raise HTTPException(500, f"Database error: {str(e)[:120]}")
     raise HTTPException(500, "Could not allocate event code, try again")
 
 @api_router.get("/events/{event_code}")
